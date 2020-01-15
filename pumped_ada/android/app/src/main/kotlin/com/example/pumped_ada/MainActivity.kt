@@ -1,4 +1,4 @@
-package com.example.test_app
+package com.example.pumped_ada
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity
