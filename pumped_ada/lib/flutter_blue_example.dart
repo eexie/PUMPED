@@ -1,60 +1,14 @@
-import 'package:flutter/material.dart';
-import './helpers/foundation.dart';
-import 'package:flutter_blue/flutter_blue.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/cupertino.dart';
-//import './flutter_blue_example.dart';
-import './widgets.dart';
+// Copyright 2017, Paul DeMarco.
+// All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
+
+import 'dart:async';
+import 'dart:math';
 import 'dart:convert' show utf8;
 
-import './MainPage.dart';
-
-void main() => runApp(new ExampleApplication());
-
-class ExampleApplication extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    if (isIos) {
-      return CupertinoApp(
-          theme: CupertinoThemeData(
-              barBackgroundColor: CupertinoColors.extraLightBackgroundGray,
-              primaryColor: CupertinoColors.destructiveRed),
-          home: MainPage()
-          );
-    } else {
-      return MaterialApp(
-          title: 'Ada - The better, smart pump',
-          theme: ThemeData(
-            // Define the default brightness and colors.
-//          brightness: Brightness.light,
-            primaryColor: Colors.teal[700],
-            accentColor: Colors.teal,
-            backgroundColor: Colors.grey[50],
-
-            // Define the default TextTheme. Use this to specify the default
-            // text styling for headlines, titles, bodies of text, and more.
-            textTheme: TextTheme(
-              headline: TextStyle(fontSize: 72.0, fontWeight: FontWeight.bold),
-              title: TextStyle(fontSize: 36.0, fontStyle: FontStyle.italic),
-              body1: TextStyle(fontSize: 14.0, color: Colors.grey[900]),
-            ),
-            iconTheme: IconThemeData(color: Colors.black),
-          ),
-//          home: StreamBuilder<BluetoothState>(
-//            stream: FlutterBlue.instance.state,
-//            initialData: BluetoothState.unknown,
-//            builder: (c, snapshot) {
-//              final state = snapshot.data;
-//              if (state == BluetoothState.on) {
-//                return FindDevicesScreen();
-//              }
-//              return BluetoothOffScreen(state: state);
-//            }),
-          home: MainPage()
-      );
-    }
-  }
-}
+import 'package:flutter/material.dart';
+import 'package:flutter_blue/flutter_blue.dart';
+import './widgets.dart';
 
 class BluetoothOffScreen extends StatelessWidget {
   const BluetoothOffScreen({Key key, this.state}) : super(key: key);
@@ -142,7 +96,7 @@ class FindDevicesScreen extends StatelessWidget {
                       onTap: () => Navigator.of(context)
                           .push(MaterialPageRoute(builder: (context) {
                         r.device.connect();
-                        return SensorPage(device: r.device);
+                        return DeviceScreen(device: r.device);
                       })),
                     ),
                   )
@@ -176,9 +130,35 @@ class FindDevicesScreen extends StatelessWidget {
 }
 
 class DeviceScreen extends StatelessWidget {
+  writeData(BluetoothCharacteristic c, String data) {
+    if (c == null) return;
+
+    List<int> bytes = utf8.encode(data);
+    c.write(bytes);
+  }
+  String _dataParser(List<int> dataFromDevice) {
+    return utf8.decode(dataFromDevice);
+  }
+  readData(BluetoothCharacteristic c) async {
+    List<int> value = await c.read();
+    print(_dataParser(value));
+    return value;
+  }
+
+
   const DeviceScreen({Key key, this.device}) : super(key: key);
 
   final BluetoothDevice device;
+
+  List<int> _getRandomBytes() {
+    final math = Random();
+    return [
+      math.nextInt(255),
+      math.nextInt(255),
+      math.nextInt(255),
+      math.nextInt(255)
+    ];
+  }
 
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
     return services
@@ -189,8 +169,8 @@ class DeviceScreen extends StatelessWidget {
             .map(
               (c) => CharacteristicTile(
             characteristic: c,
-            onReadPressed: () => c.read(),
-            onWritePressed: () => c.write([13, 24]),
+            onReadPressed: () => readData(c),
+            onWritePressed: () => c.write(_getRandomBytes()),
             onNotificationPressed: () =>
                 c.setNotifyValue(!c.isNotifying),
             descriptorTiles: c.descriptors
@@ -198,7 +178,7 @@ class DeviceScreen extends StatelessWidget {
                   (d) => DescriptorTile(
                 descriptor: d,
                 onReadPressed: () => d.read(),
-                onWritePressed: () => d.write([11, 12]),
+                onWritePressed: () => d.write(_getRandomBytes()),
               ),
             )
                 .toList(),
@@ -209,7 +189,6 @@ class DeviceScreen extends StatelessWidget {
     )
         .toList();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -315,163 +294,3 @@ class DeviceScreen extends StatelessWidget {
     );
   }
 }
-
-class SensorPage extends StatefulWidget {
-  const SensorPage({Key key, this.device}) : super(key: key);
-  final BluetoothDevice device;
-
-  @override
-  _SensorPageState createState() => _SensorPageState();
-}
-
-class _SensorPageState extends State<SensorPage> {
-  final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-  final String CHARACTERISTIC_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-  bool isReady;
-  Stream<List<int>> stream;
-  List<double> traceDust = List();
-
-  @override
-  void initState() {
-    super.initState();
-    isReady = false;
-    connectToDevice();
-  }
-
-  connectToDevice() async {
-    if (widget.device == null) {
-      _Pop();
-      return;
-    }
-
-    await widget.device.connect();
-    discoverServices();
-
-  }
-
-  disconnectFromDevice() {
-    if (widget.device == null) {
-      _Pop();
-      return;
-    }
-
-    widget.device.disconnect();
-  }
-
-  discoverServices() async {
-    if (widget.device == null) {
-      _Pop();
-      return;
-    }
-
-    List<BluetoothService> services = await widget.device.discoverServices();
-    services.forEach((service) {
-      if (service.uuid.toString() == SERVICE_UUID) {
-        service.characteristics.forEach((characteristic) {
-          if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
-            characteristic.setNotifyValue(!characteristic.isNotifying);
-            stream = characteristic.value;
-
-            setState(() {
-              isReady = true;
-            });
-          }
-        });
-      }
-    });
-
-    if (!isReady) {
-      _Pop();
-    }
-  }
-
-  Future<bool> _onWillPop() {
-    return showDialog(
-        context: context,
-        builder: (context) =>
-        new AlertDialog(
-          title: Text('Are you sure?'),
-          content: Text('Do you want to disconnect device and go back?'),
-          actions: <Widget>[
-            new FlatButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: new Text('No')),
-            new FlatButton(
-                onPressed: () {
-                  disconnectFromDevice();
-                  Navigator.of(context).pop(true);
-                },
-                child: new Text('Yes')),
-          ],
-        ) ??
-            false);
-  }
-
-  _Pop() {
-    Navigator.of(context).pop(true);
-  }
-
-  String _dataParser(List<int> dataFromDevice) {
-    return utf8.decode(dataFromDevice);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-
-    return WillPopScope(
-      onWillPop: _onWillPop,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Optical Dust Sensor'),
-        ),
-        body: Container(
-            child: !isReady
-                ? Center(
-              child: Text(
-                "Waiting...",
-                style: TextStyle(fontSize: 24, color: Colors.red),
-              ),
-            )
-                : Container(
-              child: StreamBuilder<List<int>>(
-                stream: stream,
-                builder: (BuildContext context,
-                    AsyncSnapshot<List<int>> snapshot) {
-                  if (snapshot.hasError)
-                    return Text('Error: ${snapshot.error}');
-
-                  if (snapshot.connectionState ==
-                      ConnectionState.active) {
-                    var currentValue = _dataParser(snapshot.data);
-                    traceDust.add(double.tryParse(currentValue) ?? 0);
-
-                    return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            Expanded(
-                              flex: 1,
-                              child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: <Widget>[
-                                    Text('Current value from Sensor',
-                                        style: TextStyle(fontSize: 14)),
-                                    Text('${currentValue} ug/m3',
-                                        style: TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 24))
-                                  ]),
-                            ),
-                          ],
-                        ));
-                  } else {
-                    return Text('Check the stream');
-                  }
-                },
-              ),
-            )),
-      ),
-    );
-  }
-}
-

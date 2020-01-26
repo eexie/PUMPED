@@ -3,8 +3,9 @@ import 'package:flutter/cupertino.dart';
 
 import './BLEPage.dart';
 import './PlaceHolderWidget.dart';
+import 'package:flutter_blue/flutter_blue.dart';
+import 'package:pumped_ada/flutter_blue_example.dart';
 
-//import './LineChart.dart';
 
 class MainPage extends StatefulWidget {
   @override
@@ -22,6 +23,9 @@ class _MainPage extends State<MainPage> {
 
   List<Widget> tabs = [
     BLEPage(),
+    FindDevicesScreen(),
+//    Chat(),
+    PlaceholderWidget(Colors.green),
     PlaceholderWidget(Colors.deepOrange),
     PlaceholderWidget(Colors.green),
     PlaceholderWidget(Colors.blue)
@@ -38,7 +42,17 @@ class _MainPage extends State<MainPage> {
       appBar: AppBar(
         title: const Text('Ada'),
       ),
-      body: tabs[_currentIndex],
+      body: StreamBuilder<BluetoothState>(
+        stream: FlutterBlue.instance.state,
+        initialData: BluetoothState.unknown,
+        builder: (c, snapshot) {
+          final state = snapshot.data;
+          if (state == BluetoothState.on) {
+            return tabs[_currentIndex];
+          }
+          return BluetoothOffScreen(state: state);
+        }),
+//      body: tabs[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         onTap: onTabTapped,
         currentIndex: _currentIndex, // this will be set when a new tab is tapped
