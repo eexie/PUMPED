@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import './helpers/foundation.dart';
 import 'package:flutter/cupertino.dart';
-
+import 'package:google_sign_in/google_sign_in.dart';
 import './MainPage.dart';
 
 void main() => runApp(new ExampleApplication());
@@ -39,7 +39,10 @@ class ExampleApplication extends StatelessWidget {
             iconTheme: IconThemeData(color: Colors.black),
           ),
           home: MainPage()
+
+
       );
     }
   }
 }
+
