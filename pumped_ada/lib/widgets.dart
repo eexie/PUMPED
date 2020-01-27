@@ -143,8 +143,7 @@ class CharacteristicTile extends StatelessWidget {
       initialData: characteristic.lastValue,
       builder: (c, snapshot) {
         final value = snapshot.data;
-        return ExpansionTile(
-          title: ListTile(
+        return ListTile(
             title: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -158,8 +157,6 @@ class CharacteristicTile extends StatelessWidget {
             ),
             subtitle: Text(_dataParser(value)),
             contentPadding: EdgeInsets.all(0.0),
-          ),
-          children: descriptorTiles,
         );
       },
     );

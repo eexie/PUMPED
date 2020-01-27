@@ -70,6 +70,7 @@ class FindDevicesScreen extends StatelessWidget {
                                 MaterialPageRoute(
                                     builder: (context) =>
                                         DeviceScreen(device: d))),
+//                              onPressed: () => redirect,
                           );
                         }
                         return Text(snapshot.data.toString());
@@ -382,7 +383,6 @@ class _BLEPage extends State<BLEPage> {
           data = "works";
           print(data);
           writeData(data);
-          readData();
         },
         child: Icon(Icons.navigation),
         backgroundColor: Colors.green,
@@ -395,17 +395,9 @@ class _BLEPage extends State<BLEPage> {
             children: <Widget>[
               Text('read', style: TextStyle(fontSize: 40.0)),
               Padding(padding: EdgeInsets.all(10.0)),
-              RaisedButton(
-                child: Text(
-                  "Press me",
-                  style: TextStyle(color: Colors.white),
-                ),
-                color: Colors.red,
-                onPressed: () => readData(),
-              )
-              ],
-            ),
+            ],
+          ),
       ),
-    );
+    ));
   }
 }
