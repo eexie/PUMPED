@@ -124,47 +124,6 @@ class FindDevicesScreen extends StatelessWidget {
     );
   }
 }
-class DataTile extends StatelessWidget {
-  final BluetoothCharacteristic characteristic;
-  final List<ProductionDataPoint> productionData;
-
-  const DataTile (
-      {Key key,
-        this.characteristic,
-        this.productionData})
-      : super(key: key);
-
-  String _dataParser(List<int> dataFromDevice) {
-    return utf8.decode(dataFromDevice);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<int>>(
-      stream: characteristic.value,
-      initialData: characteristic.lastValue,
-      builder: (c, snapshot) {
-        final value = snapshot.data;
-        productionData.add(new ProductionDataPoint(DateTime.now(), 0.2));
-        return ListTile(
-          title: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text('Characteristic'),
-              Text(
-                  '0x${characteristic.uuid.toString()}',
-                  style: Theme.of(context).textTheme.body1.copyWith(
-                      color: Theme.of(context).textTheme.caption.color))
-            ],
-          ),
-          subtitle: Text(_dataParser(value)),
-          contentPadding: EdgeInsets.all(0.0),
-        );
-      },
-    );
-  }
-}
 
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({Key key, this.device}) : super(key: key);
@@ -177,6 +136,11 @@ class DeviceScreen extends StatefulWidget {
 class _DeviceScreen extends State<DeviceScreen> {
   final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
   final String CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
+  List<ProductionDataPoint> sessionTimeSeries; //Timeseries for the current pumping session
+
+  String _dataParser(List<int> dataFromDevice) {
+    return utf8.decode(dataFromDevice);
+  }
 
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
     print('services length ${services.length}');
@@ -192,17 +156,59 @@ class _DeviceScreen extends State<DeviceScreen> {
     targetCharacteristics[0].setNotifyValue(true);
 
     print(targetServices.length);
+    BluetoothCharacteristic readCharacteristic = targetCharacteristics[0];
+    BluetoothCharacteristic writeCharacteristic = targetCharacteristics[1];
     print('targetCharacterstics ${targetCharacteristics.length}');
-    return targetCharacteristics
-        .map(
-          (c) => CharacteristicTile(
-        characteristic: c,
-        onNotificationPressed: () =>
-            c.setNotifyValue(!c.isNotifying),
+    return [
+      StreamBuilder<List<int>>(
+      stream: readCharacteristic.value,
+      initialData: readCharacteristic.lastValue,
+      builder: (c, snapshot) {
+        final value = snapshot.data;
+        var data = double.parse(_dataParser(value));
+        sessionTimeSeries.add(new ProductionDataPoint(DateTime.now(), data));
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Characteristic'),
+              Text(
+                  '0x${readCharacteristic.uuid.toString()}',
+                  style: Theme.of(context).textTheme.body1.copyWith(
+                      color: Theme.of(context).textTheme.caption.color))
+            ],
+          ),
+          subtitle: Text(_dataParser(value)),
+          contentPadding: EdgeInsets.all(0.0),
+        );
+      },
+    ),
+    StreamBuilder<List<int>>(
+      stream: writeCharacteristic.value,
+      initialData: writeCharacteristic.lastValue,
+      builder: (c, snapshot) {
+        final value = snapshot.data;
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Characteristic'),
+              Text(
+                  '0x${writeCharacteristic.uuid.toString()}',
+                  style: Theme.of(context).textTheme.body1.copyWith(
+                    color: Theme.of(context).textTheme.caption.color))
+              ],
+            ),
+            subtitle: Text(_dataParser(value)),
+            contentPadding: EdgeInsets.all(0.0),
+          );
+        },
       ),
-    )
 
-        .toList();
+
+    ];
   }
 
   @override

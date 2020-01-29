@@ -2,8 +2,9 @@
 
 class ProductionDataPoint{
   final DateTime time;
-  final int sales;
+  final double volume;
 
-  ProductionDataPoint(this.time, this.sales);
+  ProductionDataPoint(this.time, this.volume);
+
 }
 
