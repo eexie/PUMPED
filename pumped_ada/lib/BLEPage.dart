@@ -3,6 +3,7 @@ import 'dart:convert' show utf8;
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import './widgets.dart';
+import './helpers/ProductionDataPoint.dart';
 
 class BluetoothOffScreen extends StatelessWidget {
   const BluetoothOffScreen({Key key, this.state}) : super(key: key);
@@ -123,11 +124,57 @@ class FindDevicesScreen extends StatelessWidget {
     );
   }
 }
+class DataTile extends StatelessWidget {
+  final BluetoothCharacteristic characteristic;
+  final List<ProductionDataPoint> productionData;
 
-class DeviceScreen extends StatelessWidget {
+  const DataTile (
+      {Key key,
+        this.characteristic,
+        this.productionData})
+      : super(key: key);
+
+  String _dataParser(List<int> dataFromDevice) {
+    return utf8.decode(dataFromDevice);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<int>>(
+      stream: characteristic.value,
+      initialData: characteristic.lastValue,
+      builder: (c, snapshot) {
+        final value = snapshot.data;
+        productionData.add(new ProductionDataPoint(DateTime.now(), 0.2));
+        return ListTile(
+          title: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text('Characteristic'),
+              Text(
+                  '0x${characteristic.uuid.toString()}',
+                  style: Theme.of(context).textTheme.body1.copyWith(
+                      color: Theme.of(context).textTheme.caption.color))
+            ],
+          ),
+          subtitle: Text(_dataParser(value)),
+          contentPadding: EdgeInsets.all(0.0),
+        );
+      },
+    );
+  }
+}
+
+class DeviceScreen extends StatefulWidget {
   const DeviceScreen({Key key, this.device}) : super(key: key);
 
   final BluetoothDevice device;
+
+  @override
+  _DeviceScreen createState() => _DeviceScreen();
+}
+class _DeviceScreen extends State<DeviceScreen> {
   final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
   final String CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
 
@@ -162,21 +209,21 @@ class DeviceScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(device.name),
+        title: Text(widget.device.name),
         actions: <Widget>[
           StreamBuilder<BluetoothDeviceState>(
-            stream: device.state,
+            stream: widget.device.state,
             initialData: BluetoothDeviceState.connecting,
             builder: (c, snapshot) {
               VoidCallback onPressed;
               String text;
               switch (snapshot.data) {
                 case BluetoothDeviceState.connected:
-                  onPressed = () => device.disconnect();
+                  onPressed = () => widget.device.disconnect();
                   text = 'DISCONNECT';
                   break;
                 case BluetoothDeviceState.disconnected:
-                  onPressed = () => device.connect();
+                  onPressed = () => widget.device.connect();
                   text = 'CONNECT';
                   break;
                 default:
@@ -201,7 +248,7 @@ class DeviceScreen extends StatelessWidget {
         child: Column(
           children: <Widget>[
             StreamBuilder<BluetoothDeviceState>(
-              stream: device.state,
+              stream: widget.device.state,
               initialData: BluetoothDeviceState.connecting,
               builder: (c, snapshot) => ListTile(
                 leading: (snapshot.data == BluetoothDeviceState.connected)
@@ -209,16 +256,16 @@ class DeviceScreen extends StatelessWidget {
                     : Icon(Icons.bluetooth_disabled),
                 title: Text(
                     'Device is ${snapshot.data.toString().split('.')[1]}.'),
-                subtitle: Text('${device.id}'),
+                subtitle: Text('${widget.device.id}'),
                 trailing: StreamBuilder<bool>(
-                  stream: device.isDiscoveringServices,
+                  stream: widget.device.isDiscoveringServices,
                   initialData: false,
                   builder: (c, snapshot) => IndexedStack(
                     index: snapshot.data ? 1 : 0,
                     children: <Widget>[
                       IconButton(
                         icon: Icon(Icons.refresh),
-                        onPressed: () => device.discoverServices(),
+                        onPressed: () => widget.device.discoverServices(),
                       ),
                       IconButton(
                         icon: SizedBox(
@@ -236,7 +283,7 @@ class DeviceScreen extends StatelessWidget {
               ),
             ),
             StreamBuilder<List<BluetoothService>>(
-              stream: device.services,
+              stream: widget.device.services,
               initialData: [],
               builder: (c, snapshot) {
                 final state = snapshot.data;
@@ -280,10 +327,6 @@ class _BLEPage extends State<BLEPage> {
   BluetoothCharacteristic targetCharacteristic;
 
   String connectionText = "";
-
-  String _dataParser(List<int> dataFromDevice) {
-    return utf8.decode(dataFromDevice);
-  }
 
   @override
   void initState() {
