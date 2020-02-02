@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import './widgets.dart';
 import './helpers/ProductionDataPoint.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class BluetoothOffScreen extends StatelessWidget {
   const BluetoothOffScreen({Key key, this.state}) : super(key: key);
@@ -124,7 +125,40 @@ class FindDevicesScreen extends StatelessWidget {
     );
   }
 }
+class SessionData{
+  final List<ProductionDataPoint> datapoints;
+  final int letdownLength;
+  final int pumpPowerLvl;
+  final int sessionLength;
+  final String timeOfDay;
+  final DateTime endTime;
+  final int sessionNumber;
 
+  SessionData(this.datapoints,
+      this.letdownLength,
+      this.pumpPowerLvl,
+      this.sessionLength,
+      this.timeOfDay,
+      this.endTime,
+      this.sessionNumber);
+
+  Map<String, dynamic> toMap() {
+    List<Map<String, dynamic>> datapointsArray = [];
+    datapoints.forEach((point) {
+      datapointsArray.add(point.toMap());
+    });
+
+    return {
+      'datapoints': datapointsArray,
+      'letdownLength': letdownLength,
+      'pumpPowerLvl': pumpPowerLvl,
+      'sessionLength': sessionLength,
+      'timeOfDay': timeOfDay,
+      'endTime': endTime,
+      'sessionNumber': sessionNumber,
+    };
+  }
+}
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({Key key, this.device}) : super(key: key);
 
@@ -136,18 +170,108 @@ class DeviceScreen extends StatefulWidget {
 class _DeviceScreen extends State<DeviceScreen> {
   final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
   final String CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
-  List<ProductionDataPoint> sessionTimeSeries; //Timeseries for the current pumping session
+  final databaseReference = Firestore.instance;
 
+  List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current pumping session
+  bool inLetdown = false;
+  int letdownLength = 0;
+  int vacuumLvl = 0;
+  int pumpPowerLvl = 0;
+  DateTime startTime;
+  DateTime endTime;
   String _dataParser(List<int> dataFromDevice) {
     return utf8.decode(dataFromDevice);
   }
+  @override
+  void initState() {
+    super.initState();
+    sessionTimeSeries.clear();
+    startTime = new DateTime.now();
+  }
+  handleReceivedData(String value){
+    if(value[0] == 'l'){ // letdown detected
+      sessionTimeSeries.clear();
+      inLetdown = true;
+      print('letdown detected');
+    }
+    else if (value[0] == 'v') { // current value level
+      vacuumLvl = int.parse(value.substring(2));
+      print('current vacuum level ${vacuumLvl}');
+    }
+    else if (value[0] == 'e'){ // pumping session ended
+      createSessionRecord();
+      print('end session, write to firebase');
+    }
+    else if(double.tryParse(value[0]) != null){ // received data point
+      print('volume received');
+      print(value);
+      var duration = (value.split(' ')[0]);
+      var time = startTime.add(new Duration(seconds: int.parse(duration)));
+      print('time ${time.toString()}');
+      var volume = double.parse(value.split(" ")[1]);
+      print('volume ${volume.toString()}');
+      ProductionDataPoint dataPoint = new ProductionDataPoint(time, volume);
+      sessionTimeSeries.add(dataPoint);
+      print (sessionTimeSeries.length);
+//      print('added datapoint, volume ${volume}');
+    }
+  }
+  String getTimeofDay (DateTime endTime){
+    int sessionHour = endTime.hour;
+    if(sessionHour <= 6 && sessionHour > 0){
+      return "dawn";
+    } else if(sessionHour <= 12 && sessionHour > 6){
+      return "morning";
+    } else if (sessionHour <= 18 && sessionHour > 12){
+      return "afternoon";
+    } else {
+      return "evening";
+    }
+  }
+  void createSessionRecord() async {
+    print('creating record');
+    DateTime endTime = DateTime.now();
+    final userDocumentReference = databaseReference.collection("users").document("emily");
+    String collectionTitle = startTime.month.toString()
+        + '-' + startTime.day.toString()
+        + '-' + startTime.year.toString(); //creates a collection of sessions for the day, if it doesn't exist
+    CollectionReference sessionCollection = userDocumentReference.collection(collectionTitle);
+    String documentTitle = startTime.hour.toString() + '-' + startTime.minute.toString();
 
+    DocumentReference newSession = sessionCollection.document(documentTitle);
+
+    databaseReference.runTransaction((transaction) async{
+      await transaction.set(newSession, null);
+    });
+    int sessionNumber = 0;
+
+    // write document first
+
+    sessionCollection.orderBy('startTime').getDocuments().then(
+            (value) => sessionNumber = value.documents.length + 1
+    );
+
+    int sessionLength = endTime.difference(startTime).inSeconds;
+    String timeOfDay = getTimeofDay(endTime);
+
+    SessionData sessionRecord = new SessionData(sessionTimeSeries,
+        letdownLength,
+        pumpPowerLvl,
+        sessionLength,
+        timeOfDay,
+        endTime,
+        sessionNumber);
+
+    databaseReference.runTransaction((transaction) async{
+      await transaction.set(newSession, sessionRecord.toMap());
+      print("wrote data");
+    });
+  }
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
     print('services length ${services.length}');
     List<BluetoothService> targetServices = [];
     List<BluetoothCharacteristic> targetCharacteristics = [];
     services.forEach((service) {
-      print('service id ${service.uuid.toString()}');
       if (service.uuid.toString() == SERVICE_UUID) {
         targetServices.add(service);
       }
@@ -155,18 +279,15 @@ class _DeviceScreen extends State<DeviceScreen> {
     targetCharacteristics = targetServices[0].characteristics;
     targetCharacteristics[0].setNotifyValue(true);
 
-    print(targetServices.length);
     BluetoothCharacteristic readCharacteristic = targetCharacteristics[0];
     BluetoothCharacteristic writeCharacteristic = targetCharacteristics[1];
-    print('targetCharacterstics ${targetCharacteristics.length}');
     return [
       StreamBuilder<List<int>>(
       stream: readCharacteristic.value,
       initialData: readCharacteristic.lastValue,
       builder: (c, snapshot) {
         final value = snapshot.data;
-        var data = double.parse(_dataParser(value));
-        sessionTimeSeries.add(new ProductionDataPoint(DateTime.now(), data));
+        if(value.isNotEmpty) handleReceivedData(_dataParser(value));
         return ListTile(
           title: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -298,6 +419,7 @@ class _DeviceScreen extends State<DeviceScreen> {
                   return Column(
                     children: _buildServiceTiles(snapshot.data),
                   );
+//                  return Column();
                 }
                 else {
                   print('not connected');

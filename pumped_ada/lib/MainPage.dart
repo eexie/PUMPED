@@ -26,7 +26,6 @@ class _MainPage extends State<MainPage> {
     FindDevicesScreen(),
     PlaceholderWidget(Colors.deepOrange),
     PlaceholderWidget(Colors.green),
-    PlaceholderWidget(Colors.blue)
   ];
 
   @override
@@ -66,11 +65,11 @@ class _MainPage extends State<MainPage> {
           BottomNavigationBarItem(
             icon: Icon(Icons.group, color: Colors.grey[600]),
             title: Text('Community', style: TextStyle(color: Colors.grey[600])),
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings, color: Colors.grey[600]),
-            title: Text('Settings', style: TextStyle(color: Colors.grey[600]))
           )
+//          BottomNavigationBarItem(
+//            icon: Icon(Icons.settings, color: Colors.grey[600]),
+//            title: Text('Settings', style: TextStyle(color: Colors.grey[600]))
+//          )
         ],
       ),
     );
