@@ -25,7 +25,13 @@ dependencies:
   cupertino_icons: ^0.1.2
   flutter_blue: ^0.6.3
   google_sign_in: ^4.1.1
-  firebase_database: ^3.1.1
+
+  http: ^0.12.0+4
+
+  # Required for any firebase plugin
+#  firebase_core: ^0.4.0+9
+
+  cloud_firestore: ^0.13.0+1
 
 dev_dependencies:
   flutter_test:
