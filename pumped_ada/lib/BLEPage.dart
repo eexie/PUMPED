@@ -125,40 +125,7 @@ class FindDevicesScreen extends StatelessWidget {
     );
   }
 }
-class SessionData{
-  final List<ProductionDataPoint> datapoints;
-  final int letdownLength;
-  final int pumpPowerLvl;
-  final int sessionLength;
-  final String timeOfDay;
-  final DateTime endTime;
-  final int sessionNumber;
 
-  SessionData(this.datapoints,
-      this.letdownLength,
-      this.pumpPowerLvl,
-      this.sessionLength,
-      this.timeOfDay,
-      this.endTime,
-      this.sessionNumber);
-
-  Map<String, dynamic> toMap() {
-    List<Map<String, dynamic>> datapointsArray = [];
-    datapoints.forEach((point) {
-      datapointsArray.add(point.toMap());
-    });
-
-    return {
-      'datapoints': datapointsArray,
-      'letdownLength': letdownLength,
-      'pumpPowerLvl': pumpPowerLvl,
-      'sessionLength': sessionLength,
-      'timeOfDay': timeOfDay,
-      'endTime': endTime,
-      'sessionNumber': sessionNumber,
-    };
-  }
-}
 class DeviceScreen extends StatefulWidget {
   const DeviceScreen({Key key, this.device}) : super(key: key);
 
@@ -175,28 +142,33 @@ class _DeviceScreen extends State<DeviceScreen> {
   List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current pumping session
   bool inLetdown = false;
   int letdownLength = 0;
+  int preVacuumLvl = 0;
   int vacuumLvl = 0;
-  int pumpPowerLvl = 0;
+  List<int> pumpPowerLvl = [0];
   DateTime startTime;
   DateTime endTime;
+  List<String> mood = [];
+
+  BluetoothCharacteristic writeCharacteristic;
+
   String _dataParser(List<int> dataFromDevice) {
     return utf8.decode(dataFromDevice);
   }
   @override
   void initState() {
     super.initState();
-    sessionTimeSeries.clear();
-    startTime = new DateTime.now();
   }
   handleReceivedData(String value){
     if(value[0] == 'l'){ // letdown detected
       sessionTimeSeries.clear();
       inLetdown = true;
+      letdownLength = DateTime.now().difference(startTime).inSeconds;
       print('letdown detected');
     }
-    else if (value[0] == 'v') { // current value level
-      vacuumLvl = int.parse(value.substring(2));
-      print('current vacuum level ${vacuumLvl}');
+    else if (value[0] == 'v') { // current vacuum level
+//      vacuumLvl = int.parse(value.substring(1));
+//      print('current vacuum level ${vacuumLvl}');
+      print('vacuum changed' + value);
     }
     else if (value[0] == 'e'){ // pumping session ended
       createSessionRecord();
@@ -205,18 +177,14 @@ class _DeviceScreen extends State<DeviceScreen> {
     else if(double.tryParse(value[0]) != null){ // received data point
       print('volume received');
       print(value);
-      var duration = (value.split(' ')[0]);
+      var duration = value[0];
       var time = startTime.add(new Duration(seconds: int.parse(duration)));
-      print('time ${time.toString()}');
-      var volume = double.parse(value.split(" ")[1]);
-      print('volume ${volume.toString()}');
+      var volume = double.parse(value[1]);
       ProductionDataPoint dataPoint = new ProductionDataPoint(time, volume);
       sessionTimeSeries.add(dataPoint);
-      print (sessionTimeSeries.length);
-//      print('added datapoint, volume ${volume}');
     }
   }
-  String getTimeofDay (DateTime endTime){
+  String getTimeOfDay (DateTime endTime){
     int sessionHour = endTime.hour;
     if(sessionHour <= 6 && sessionHour > 0){
       return "dawn";
@@ -227,6 +195,29 @@ class _DeviceScreen extends State<DeviceScreen> {
     } else {
       return "evening";
     }
+  }
+  startSession() {
+    writeData('s');
+    sessionTimeSeries.clear();
+    print('start');
+    startTime = new DateTime.now();
+  }
+  endSession(){
+    writeData('e');
+    print('end');
+  }
+  changePumpPower(String change){
+    writeData('v${change}');
+    print("changed pump power ${change}");
+    pumpPowerLvl.add(int.parse(change));
+  }
+  writeData(String data) {
+    if (writeCharacteristic == null) {
+      print('no write characteristic');
+      return;
+    }
+    List<int> bytes = utf8.encode(data);
+    writeCharacteristic.write(bytes);
   }
   void createSessionRecord() async {
     print('creating record');
@@ -239,30 +230,29 @@ class _DeviceScreen extends State<DeviceScreen> {
     String documentTitle = startTime.hour.toString() + '-' + startTime.minute.toString();
 
     DocumentReference newSession = sessionCollection.document(documentTitle);
-
-    databaseReference.runTransaction((transaction) async{
-      await transaction.set(newSession, null);
-    });
     int sessionNumber = 0;
-
-    // write document first
-
-    sessionCollection.orderBy('startTime').getDocuments().then(
-            (value) => sessionNumber = value.documents.length + 1
-    );
-
+    String timeOfDay = getTimeOfDay(endTime);
     int sessionLength = endTime.difference(startTime).inSeconds;
-    String timeOfDay = getTimeofDay(endTime);
 
     SessionData sessionRecord = new SessionData(sessionTimeSeries,
         letdownLength,
-        pumpPowerLvl,
+        pumpPowerLvl.toSet().toList(),
         sessionLength,
         timeOfDay,
         endTime,
-        sessionNumber);
+        sessionNumber,
+        mood,
+    );
 
+    // write document first
     databaseReference.runTransaction((transaction) async{
+      await transaction.set(newSession, sessionRecord.toMap());
+      print('got database reference');
+      await sessionCollection.getDocuments().then((value) {
+        sessionNumber = value.documents.length + 1;
+        print('documents ${value.documents.length}');
+      });
+      sessionRecord.sessionNumber = sessionNumber;
       await transaction.set(newSession, sessionRecord.toMap());
       print("wrote data");
     });
@@ -280,7 +270,7 @@ class _DeviceScreen extends State<DeviceScreen> {
     targetCharacteristics[0].setNotifyValue(true);
 
     BluetoothCharacteristic readCharacteristic = targetCharacteristics[0];
-    BluetoothCharacteristic writeCharacteristic = targetCharacteristics[1];
+    writeCharacteristic = targetCharacteristics[1];
     return [
       StreamBuilder<List<int>>(
       stream: readCharacteristic.value,
@@ -374,6 +364,22 @@ class _DeviceScreen extends State<DeviceScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
+            new RaisedButton(
+              child: new Text('Start'),
+              onPressed: () {startSession();},
+            ),
+            new RaisedButton(
+              child: new Text('Stop'),
+              onPressed: () {endSession();},
+            ),
+            new RaisedButton(
+              child: new Text('Pump Up'),
+              onPressed: () {changePumpPower('u');},
+            ),
+            new RaisedButton(
+              child: new Text('Pump down'),
+              onPressed: () {changePumpPower('d');},
+            ),
             StreamBuilder<BluetoothDeviceState>(
               stream: widget.device.state,
               initialData: BluetoothDeviceState.connecting,
@@ -436,139 +442,139 @@ class _DeviceScreen extends State<DeviceScreen> {
 }
 
 
-class BLEPage extends StatefulWidget {
-  @override
-  _BLEPage createState() => new _BLEPage();
-}
-
-class _BLEPage extends State<BLEPage> {
-  final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-  final String CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-  final String TARGET_DEVICE_NAME = "Bluefruit52";
-  String data = "";
-  Stream<List<int>> stream;
-
-  FlutterBlue flutterBlue = FlutterBlue.instance;
-  StreamSubscription<ScanResult> scanSubScription;
-
-  BluetoothDevice targetDevice;
-  BluetoothCharacteristic targetCharacteristic;
-
-  String connectionText = "";
-
-  @override
-  void initState() {
-    super.initState();
-    startScan();
-  }
-
-  startScan() {
-    setState(() {
-      connectionText = "Start Scanning";
-    });
-
-    scanSubScription = flutterBlue.scan().listen((scanResult) {
-      if (scanResult.device.name == TARGET_DEVICE_NAME) {
-        print('DEVICE found');
-        stopScan();
-        setState(() {
-          connectionText = "Found Target Device";
-        });
-
-        targetDevice = scanResult.device;
-        connectToDevice();
-      }
-    }, onDone: () => stopScan());
-  }
-
-  stopScan() {
-    scanSubScription?.cancel();
-    scanSubScription = null;
-  }
-
-  connectToDevice() async {
-    if (targetDevice == null) return;
-
-    setState(() {
-      connectionText = "Device Connecting";
-    });
-
-    await targetDevice.connect();
-    print('DEVICE CONNECTED');
-    setState(() {
-      connectionText = "Device Connected";
-    });
-
-    discoverServices();
-  }
-
-  disconnectFromDevice() {
-    if (targetDevice == null) return;
-
-    targetDevice.disconnect();
-
-    setState(() {
-      connectionText = "Device Disconnected";
-    });
-  }
-
-  discoverServices() async {
-    if (targetDevice == null) return;
-
-    List<BluetoothService> services = await targetDevice.discoverServices();
-    services.forEach((service) {
-      // do something with service
-      if (service.uuid.toString() == SERVICE_UUID) {
-        service.characteristics.forEach((characteristic) {
-          if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
-            targetCharacteristic = characteristic;
-            writeData("Hi there, Dana");
-            stream = characteristic.value;
-            setState(() {
-              connectionText = "All Ready with ${targetDevice.name}";
-            });
-          }
-        });
-      }
-    });
-  }
-
-  writeData(String data) {
-    if (targetCharacteristic == null) return;
-
-    List<int> bytes = utf8.encode(data);
-    targetCharacteristic.write(bytes);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(connectionText),
-      ),
-
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Add your onPressed code here!
-          data = "works";
-          print(data);
-          writeData(data);
-        },
-        child: Icon(Icons.navigation),
-        backgroundColor: Colors.green,
-      ),
-
-      body: Center(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: <Widget>[
-              Text('read', style: TextStyle(fontSize: 40.0)),
-              Padding(padding: EdgeInsets.all(10.0)),
-            ],
-          ),
-      ),
-    ));
-  }
-}
+//class BLEPage extends StatefulWidget {
+//  @override
+//  _BLEPage createState() => new _BLEPage();
+//}
+//
+//class _BLEPage extends State<BLEPage> {
+//  final String SERVICE_UUID = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+//  final String CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+//  final String TARGET_DEVICE_NAME = "Bluefruit52";
+//  String data = "";
+//  Stream<List<int>> stream;
+//
+//  FlutterBlue flutterBlue = FlutterBlue.instance;
+//  StreamSubscription<ScanResult> scanSubScription;
+//
+//  BluetoothDevice targetDevice;
+//  BluetoothCharacteristic targetCharacteristic;
+//
+//  String connectionText = "";
+//
+//  @override
+//  void initState() {
+//    super.initState();
+//    startScan();
+//  }
+//
+//  startScan() {
+//    setState(() {
+//      connectionText = "Start Scanning";
+//    });
+//
+//    scanSubScription = flutterBlue.scan().listen((scanResult) {
+//      if (scanResult.device.name == TARGET_DEVICE_NAME) {
+//        print('DEVICE found');
+//        stopScan();
+//        setState(() {
+//          connectionText = "Found Target Device";
+//        });
+//
+//        targetDevice = scanResult.device;
+//        connectToDevice();
+//      }
+//    }, onDone: () => stopScan());
+//  }
+//
+//  stopScan() {
+//    scanSubScription?.cancel();
+//    scanSubScription = null;
+//  }
+//
+//  connectToDevice() async {
+//    if (targetDevice == null) return;
+//
+//    setState(() {
+//      connectionText = "Device Connecting";
+//    });
+//
+//    await targetDevice.connect();
+//    print('DEVICE CONNECTED');
+//    setState(() {
+//      connectionText = "Device Connected";
+//    });
+//
+//    discoverServices();
+//  }
+//
+//  disconnectFromDevice() {
+//    if (targetDevice == null) return;
+//
+//    targetDevice.disconnect();
+//
+//    setState(() {
+//      connectionText = "Device Disconnected";
+//    });
+//  }
+//
+//  discoverServices() async {
+//    if (targetDevice == null) return;
+//
+//    List<BluetoothService> services = await targetDevice.discoverServices();
+//    services.forEach((service) {
+//      // do something with service
+//      if (service.uuid.toString() == SERVICE_UUID) {
+//        service.characteristics.forEach((characteristic) {
+//          if (characteristic.uuid.toString() == CHARACTERISTIC_UUID) {
+//            targetCharacteristic = characteristic;
+//            writeData("Hi there, Dana");
+//            stream = characteristic.value;
+//            setState(() {
+//              connectionText = "All Ready with ${targetDevice.name}";
+//            });
+//          }
+//        });
+//      }
+//    });
+//  }
+//
+//  writeData(String data) {
+//    if (targetCharacteristic == null) return;
+//
+//    List<int> bytes = utf8.encode(data);
+//    targetCharacteristic.write(bytes);
+//  }
+//
+//  @override
+//  Widget build(BuildContext context) {
+//
+//    return Scaffold(
+//      appBar: AppBar(
+//        title: Text(connectionText),
+//      ),
+//
+//      floatingActionButton: FloatingActionButton(
+//        onPressed: () {
+//          // Add your onPressed code here!
+//          data = "works";
+//          print(data);
+//          writeData(data);
+//        },
+//        child: Icon(Icons.navigation),
+//        backgroundColor: Colors.green,
+//      ),
+//
+//      body: Center(
+//        child: Center(
+//          child: Column(
+//            mainAxisAlignment: MainAxisAlignment.center,
+//            children: <Widget>[
+//              Text('read', style: TextStyle(fontSize: 40.0)),
+//              Padding(padding: EdgeInsets.all(10.0)),
+//            ],
+//          ),
+//      ),
+//    ));
+//  }
+//}
