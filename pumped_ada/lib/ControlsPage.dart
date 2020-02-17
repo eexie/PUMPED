@@ -19,20 +19,10 @@ class _ControlsPage extends State<ControlsPage> {
     sessionTimeSeries = [];
   }
 
-  void readFileByLines() {
-    File file = new File('./assets/user.json');
-
-    // async
-    file.readAsLines().then((lines) =>
-        lines.forEach((l) => print(l))
-    );
-
-    // sync
-    List<String> lines = file.readAsLinesSync();
-    lines.forEach((l) => print(l));
-  }
   @override
   Widget build(BuildContext context) {
-    return Scaffold();
+    return Scaffold(
+
+    );
   }
 }

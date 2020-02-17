@@ -19,7 +19,7 @@ class SessionData{
   final int sessionLength;
   final String timeOfDay;
   final DateTime endTime;
-  final List<String>i mood;
+  final List<String> mood;
   List<int> pumpPowerLvl;
   int sessionNumber;
 

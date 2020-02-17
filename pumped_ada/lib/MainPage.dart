@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 import './BLEPage.dart';
+import './ControlsPage.dart';
 import './PlaceHolderWidget.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
@@ -23,8 +24,8 @@ class _MainPage extends State<MainPage> {
 
   List<Widget> tabs = [
 //    BLEPage(),
-    FindDevicesScreen(),
-    PlaceholderWidget(Colors.deepOrange),
+    MyAdaScreen(),
+    ControlsPage(),
     PlaceholderWidget(Colors.green),
   ];
 
