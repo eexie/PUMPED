@@ -37,9 +37,9 @@ class _MainPage extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ada'),
-      ),
+//      appBar: AppBar(
+//        title: const Text('Ada'),
+//      ),
       body: StreamBuilder<BluetoothState>(
           stream: FlutterBlue.instance.state,
           initialData: BluetoothState.unknown,
@@ -60,17 +60,13 @@ class _MainPage extends State<MainPage> {
             title: new Text('Home', style: TextStyle(color: Colors.grey[600])),
           ),
           BottomNavigationBarItem(
-            icon: new Icon(Icons.power_settings_new, color: Colors.grey[600]),
-            title: new Text('Control', style: TextStyle(color: Colors.grey[600])),
+            icon: new Icon(Icons.panorama_fish_eye, color: Colors.grey[600]),
+            title: new Text('My Ada', style: TextStyle(color: Colors.grey[600])),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.group, color: Colors.grey[600]),
-            title: Text('Community', style: TextStyle(color: Colors.grey[600])),
+            icon: Icon(Icons.favorite_border, color: Colors.grey[600]),
+            title: Text('Connect', style: TextStyle(color: Colors.grey[600])),
           )
-//          BottomNavigationBarItem(
-//            icon: Icon(Icons.settings, color: Colors.grey[600]),
-//            title: Text('Settings', style: TextStyle(color: Colors.grey[600]))
-//          )
         ],
       ),
     );
