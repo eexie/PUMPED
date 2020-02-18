@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 
 import './BLEPage.dart';
-import './ControlsPage.dart';
+import './MyAda.dart';
 import './PlaceHolderWidget.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
@@ -25,7 +25,7 @@ class _MainPage extends State<MainPage> {
   List<Widget> tabs = [
 //    BLEPage(),
     MyAdaScreen(),
-    ControlsPage(),
+    MyAda(),
     PlaceholderWidget(Colors.green),
   ];
 
@@ -56,16 +56,16 @@ class _MainPage extends State<MainPage> {
 //        currentIndex: 0,
         items: [
           BottomNavigationBarItem(
-            icon: new Icon(Icons.home, color: Colors.grey[600]),
-            title: new Text('Home', style: TextStyle(color: Colors.grey[600])),
+            icon: new Icon(Icons.home),
+            title: new Text('HOME'),
           ),
           BottomNavigationBarItem(
-            icon: new Icon(Icons.panorama_fish_eye, color: Colors.grey[600]),
-            title: new Text('My Ada', style: TextStyle(color: Colors.grey[600])),
+            icon: new Icon(Icons.panorama_fish_eye),
+            title: new Text('MY ADA'),
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.favorite_border, color: Colors.grey[600]),
-            title: Text('Connect', style: TextStyle(color: Colors.grey[600])),
+            icon: Icon(Icons.favorite_border),
+            title: Text('CONNECT'),
           )
         ],
       ),

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert' show utf8;
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
-import './widgets.dart';
 import './helpers/ProductionDataPoint.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
