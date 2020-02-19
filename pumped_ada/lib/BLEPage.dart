@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert' show utf8;
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import './helpers/ProductionDataPoint.dart';
@@ -13,26 +14,26 @@ class BluetoothOffScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.lightBlue,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(
-              Icons.bluetooth_disabled,
-              size: 200.0,
-              color: Colors.white54,
-            ),
-            Text(
-              'Bluetooth Adapter is ${state.toString().substring(15)}.',
-              style: Theme.of(context)
-                  .primaryTextTheme
-                  .subhead
-                  .copyWith(color: Colors.white),
-            ),
-          ],
-        ),
-      ),
+//      backgroundColor: Colors.lightBlue,
+//      body: Center(
+//        child: Column(
+//          mainAxisSize: MainAxisSize.min,
+//          children: <Widget>[
+//            Icon(
+//              Icons.bluetooth_disabled,
+//              size: 200.0,
+//              color: Colors.white54,
+//            ),
+//            Text(
+//              'Bluetooth Adapter is ${state.toString().substring(15)}.',
+//              style: Theme.of(context)
+//                  .primaryTextTheme
+//                  .subhead
+//                  .copyWith(color: Colors.white),
+//            ),
+//          ],
+//        ),
+//      ),
     );
   }
 }
@@ -213,22 +214,35 @@ class _DeviceScreen extends State<DeviceScreen> {
   List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current pumping session
   bool inLetdown = false;
   int letdownLength = 0;
-  int preVacuumLvl = 0;
+
+  // session controls
+  int letdownVacuumLvl = 0;
   int vacuumLvl = 0;
-  List<int> pumpPowerLvl = [0];
+  int letdownSpeed = 0;
+  bool downPressed = false;
+
+  // session record data
+  List<int> vacuumPowerLvls = [0];
   DateTime startTime;
   DateTime endTime;
+  int sessionNumber = 0;
   List<String> mood = [];
+  CollectionReference sessionCollection;
+  DocumentReference newSession;
+  DocumentReference sessionControlsReference;
 
   BluetoothCharacteristic writeCharacteristic;
+
+  @override
+  void initState() {
+    super.initState();
+    getSessionControls();
+  }
 
   String _dataParser(List<int> dataFromDevice) {
     return utf8.decode(dataFromDevice);
   }
-  @override
-  void initState() {
-    super.initState();
-  }
+
   handleReceivedData(String value){
     if(value[0] == 'l'){ // letdown detected
       sessionTimeSeries.clear();
@@ -280,7 +294,7 @@ class _DeviceScreen extends State<DeviceScreen> {
   changePumpPower(String change){
     writeData('v${change}');
     print("changed pump power ${change}");
-    pumpPowerLvl.add(int.parse(change));
+    vacuumPowerLvls.add(int.parse(change));
   }
   writeData(String data) {
     if (writeCharacteristic == null) {
@@ -290,39 +304,65 @@ class _DeviceScreen extends State<DeviceScreen> {
     List<int> bytes = utf8.encode(data);
     writeCharacteristic.write(bytes);
   }
-  void createSessionRecord() async {
-    print('creating record');
-    DateTime endTime = DateTime.now();
+
+  void getSessionControls() async {
     final userDocumentReference = databaseReference.collection("users").document("emily");
     String collectionTitle = startTime.month.toString()
         + '-' + startTime.day.toString()
         + '-' + startTime.year.toString(); //creates a collection of sessions for the day, if it doesn't exist
-    CollectionReference sessionCollection = userDocumentReference.collection(collectionTitle);
+    sessionCollection = userDocumentReference.collection(collectionTitle);
     String documentTitle = startTime.hour.toString() + '-' + startTime.minute.toString();
+    newSession = sessionCollection.document(documentTitle);
 
-    DocumentReference newSession = sessionCollection.document(documentTitle);
-    int sessionNumber = 0;
+    CollectionReference personalizationCollection = userDocumentReference.collection('personalization');
+    sessionControlsReference = personalizationCollection.document('sessionControls');
+
+    databaseReference.runTransaction((transaction) async{
+
+      //get count of # of sessions in collection
+      await sessionCollection.getDocuments().then((value) {
+        sessionNumber = value.documents.length + 1;
+        print('documents ${value.documents.length}');
+      });
+
+      //get last session data to determine current session's controls
+      await transaction.get(sessionControlsReference).then((value) {
+        vacuumLvl = value.data['vacuumPower'];
+        letdownSpeed = value.data['letdownSpeed'];
+        letdownVacuumLvl = value.data['letdownVacuum'];
+      });
+    });
+  }
+  void createSessionRecord() async {
+    print('creating record');
+    DateTime endTime = DateTime.now();
+
     String timeOfDay = getTimeOfDay(endTime);
     int sessionLength = endTime.difference(startTime).inSeconds;
 
     SessionData sessionRecord = new SessionData(sessionTimeSeries,
         letdownLength,
-        pumpPowerLvl.toSet().toList(),
+        vacuumPowerLvls.toSet().toList(),
         sessionLength,
         timeOfDay,
         endTime,
         sessionNumber,
         mood,
     );
+    int sessionVacuumMaxLvl = vacuumPowerLvls.reduce(max);
+    sessionVacuumMaxLvl = downPressed ? sessionVacuumMaxLvl -=2 : sessionVacuumMaxLvl;
 
     // write document first
     databaseReference.runTransaction((transaction) async{
       await transaction.set(newSession, sessionRecord.toMap());
       print('got database reference');
-      await sessionCollection.getDocuments().then((value) {
-        sessionNumber = value.documents.length + 1;
-        print('documents ${value.documents.length}');
-      });
+
+      // if user was ok with a higher vacuum power setting this session, record it
+      if (sessionVacuumMaxLvl > vacuumLvl){
+        vacuumLvl = sessionVacuumMaxLvl;
+        await transaction.set(sessionControlsReference, {'vacuumPower': vacuumPowerLvls});
+      }
+
       sessionRecord.sessionNumber = sessionNumber;
       await transaction.set(newSession, sessionRecord.toMap());
       print("wrote data");
@@ -445,11 +485,16 @@ class _DeviceScreen extends State<DeviceScreen> {
             ),
             new RaisedButton(
               child: new Text('Pump Up'),
-              onPressed: () {changePumpPower('u');},
+              onPressed: () {
+                changePumpPower('u');
+              },
             ),
             new RaisedButton(
               child: new Text('Pump down'),
-              onPressed: () {changePumpPower('d');},
+              onPressed: () {
+                changePumpPower('d');
+                downPressed = true;
+              },
             ),
             StreamBuilder<BluetoothDeviceState>(
               stream: widget.device.state,
