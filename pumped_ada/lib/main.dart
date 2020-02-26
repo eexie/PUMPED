@@ -47,7 +47,7 @@ class ExampleApplication extends StatelessWidget {
               body1: TextStyle(fontSize: 12.0, color: Colors.grey[900]),
               button: TextStyle(fontSize: 14.0),
               caption: TextStyle(fontSize: 14.0, fontWeight: FontWeight.w300),
-              subhead: TextStyle(fontSize: 10.0, fontWeight: FontWeight.bold),
+              subhead: TextStyle(fontSize: 10.0),
             ),
             iconTheme: IconThemeData(color: Colors.grey[600]),
           ),

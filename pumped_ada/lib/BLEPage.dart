@@ -14,26 +14,26 @@ class BluetoothOffScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-//      backgroundColor: Colors.lightBlue,
-//      body: Center(
-//        child: Column(
-//          mainAxisSize: MainAxisSize.min,
-//          children: <Widget>[
-//            Icon(
-//              Icons.bluetooth_disabled,
-//              size: 200.0,
-//              color: Colors.white54,
-//            ),
-//            Text(
-//              'Bluetooth Adapter is ${state.toString().substring(15)}.',
-//              style: Theme.of(context)
-//                  .primaryTextTheme
-//                  .subhead
-//                  .copyWith(color: Colors.white),
-//            ),
-//          ],
-//        ),
-//      ),
+      backgroundColor: Colors.lightBlue,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(
+              Icons.bluetooth_disabled,
+              size: 200.0,
+              color: Colors.white54,
+            ),
+            Text(
+              'Bluetooth Adapter is ${state.toString().substring(15)}.',
+              style: Theme.of(context)
+                  .primaryTextTheme
+                  .subhead
+                  .copyWith(color: Colors.white),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -44,8 +44,7 @@ class MyAdaScreen extends StatefulWidget {
 
 }
 class _MyAdaScreen extends State<MyAdaScreen> {
-  final String CHARACTERISTIC_UUID = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
-  final String TARGET_DEVICE_NAME = "Ada";
+  final String TARGET_DEVICE_NAME = "ADA";
   String data = "";
   Stream<List<int>> stream;
 
@@ -59,21 +58,22 @@ class _MyAdaScreen extends State<MyAdaScreen> {
 
   @override
   void initState() {
-    super.initState();
     startScan();
+    super.initState();
   }
   startScan() {
+    print('scanning');
+//    flutterBlue.startScan(timeout: Duration(seconds: 4));
     setState(() {
-      connectionText = "Start Scanning";
+      connectionText = "Connecting to device...";
     });
 
+
     scanSubScription = flutterBlue.scan().listen((scanResult) {
+      print(scanResult.device.name);
       if (scanResult.device.name == TARGET_DEVICE_NAME) {
         print('DEVICE found');
         stopScan();
-        setState(() {
-          connectionText = "Found Target Device";
-        });
 
         targetDevice = scanResult.device;
         connectToDevice();
@@ -89,9 +89,9 @@ class _MyAdaScreen extends State<MyAdaScreen> {
   connectToDevice() async {
     if (targetDevice == null) return;
 
-    setState(() {
-      connectionText = "Device Connecting";
-    });
+//    setState(() {
+//      connectionText = "Device Connecting";
+//    });
 
     await targetDevice.connect();
     print('DEVICE CONNECTED');
@@ -117,9 +117,9 @@ class _MyAdaScreen extends State<MyAdaScreen> {
       appBar: AppBar(
         title: Text(connectionText),
       ),
-      body: Center(//RefreshIndicator(
-//        onRefresh: () =>
-//            FlutterBlue.instance.startScan(timeout: Duration(seconds: 4)),
+      body: RefreshIndicator(
+        onRefresh: () =>
+            FlutterBlue.instance.startScan(timeout: Duration(seconds: 4)),
         child: SingleChildScrollView(
           child: Column(
             children: <Widget>[
@@ -157,20 +157,33 @@ class _MyAdaScreen extends State<MyAdaScreen> {
 //              StreamBuilder<List<ScanResult>>(
 //                stream: FlutterBlue.instance.scanResults,
 //                initialData: [],
-//                builder: (c, snapshot) => Column(
-//                  children: snapshot.data
-//                      .map(
-//                        (r) => ScanResultTile(
-//                      result: r,
-//                      onTap: () => Navigator.of(context)
-//                          .push(MaterialPageRoute(builder: (context) {
-//                        r.device.connect();
-//                        return DeviceScreen(device: r.device);
-//                      })),
+//                builder: (c, snapshot) {
+//                  ScanResult d = snapshot.data.firstWhere((el) => (el.device.name == TARGET_DEVICE_NAME));
+//                  return Column(
+//                    children: <Widget>[
+//                      new RaisedButton(
+//                        child: Text('connect to ${d.device.name}'),
+//                        onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (context){
+//                          d.device.connect();
+//                        return DeviceScreen(device: d.device);
+//                    })),
 //                    ),
-//                  )
-//                      .toList(),
-//                ),
+//                    ],
+////                  children: snapshot.data
+////                      .map(
+////                        (r) => ScanResultTile(
+////                      result: r,
+////                      onTap: () => Navigator.of(context)
+////                          .push(MaterialPageRoute(builder: (context) {
+////                        r.device.connect();
+////                        return DeviceScreen(device: r.device);
+////                      })),
+////                    ),
+////                  )
+////                      .toList(),
+//
+//                  );
+//                },
 //              ),
             ],
           ),
@@ -236,6 +249,7 @@ class _DeviceScreen extends State<DeviceScreen> {
   @override
   void initState() {
     super.initState();
+    widget.device.discoverServices();
     getSessionControls();
   }
 
@@ -256,7 +270,7 @@ class _DeviceScreen extends State<DeviceScreen> {
       print('vacuum changed' + value);
     }
     else if (value[0] == 'e'){ // pumping session ended
-      createSessionRecord();
+//      createSessionRecord();
       print('end session, write to firebase');
     }
     else if(double.tryParse(value[0]) != null){ // received data point
@@ -282,7 +296,7 @@ class _DeviceScreen extends State<DeviceScreen> {
     }
   }
   startSession() {
-    writeData('s');
+    writeData('s 5');
     sessionTimeSeries.clear();
     print('start');
     startTime = new DateTime.now();
@@ -376,6 +390,7 @@ class _DeviceScreen extends State<DeviceScreen> {
       if (service.uuid.toString() == SERVICE_UUID) {
         targetServices.add(service);
       }
+
     });
     targetCharacteristics = targetServices[0].characteristics;
     targetCharacteristics[0].setNotifyValue(true);

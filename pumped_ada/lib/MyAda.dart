@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 //import 'package:cloud_firestore/cloud_firestore.dart';
 import './helpers/ProductionDataPoint.dart';
 import './helpers/numberpicker.dart';
-import 'dart:io';
 import 'dart:ui';
 import 'dart:math';
+import './widgets.dart';
 
 class MyAda extends StatefulWidget {
   @override
@@ -29,7 +29,11 @@ class _MyAda extends State<MyAda> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          titleSection(context),
+          SizedBox(height: 50),
+          TitleSection(
+            titleText: 'Ready to get started?',
+            subText: '2.5h since you last pumped',
+          ),
           Center(
             child: Container(
               child: NumberPicker.integer(
@@ -42,33 +46,43 @@ class _MyAda extends State<MyAda> {
           ),
 //          new Text("Current number: $_duration"), // debug
           SizedBox(height: 20),
-          SessionScreen(),
+          startButton(context),
+//          SessionScreen(),
         ]
       ),
 
     );
   }
 
-  Widget titleSection(BuildContext context){
-    return Container(
-      padding: const EdgeInsets.only(left: 45, right: 45, top: 60, bottom: 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-            Text(
-              'Ready to get started?',
-              style: Theme.of(context).textTheme.display3,
+
+  Widget startButton(BuildContext context) {
+    ThemeData themeData = Theme.of(context);
+    return new Center(
+      child: Container(
+        height: 150.0,
+        width: 150.0,
+        child: new Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: new RaisedButton(
+            color: Theme.of(context).primaryColor,
+            splashColor: Colors.blueAccent,
+            shape: new CircleBorder(),
+            child: new Text(
+              'LET\'S GO!',
+              style: themeData.textTheme.button.copyWith(color: Colors.white),
             ),
-            SizedBox(height: 12),
-            Text(
-              '2.5h since you last pumped',
-              style: Theme.of(context).textTheme.body1,
-            ),
-        ],
-      ),
+            onPressed: () {Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) =>
+                  SessionScreen(setDuration: _duration * 60)));
+            },
+          ),
+        ),
+      )
     );
   }
 }
+
 
 class MyPainter extends CustomPainter{
   Color lineColor;
@@ -138,68 +152,213 @@ class MyPainter extends CustomPainter{
 //}
 
 class SessionScreen extends StatefulWidget{
+  const SessionScreen({Key key, this.setDuration}) : super(key: key);
+  final int setDuration;
   @override
   _SessionScreen createState() => _SessionScreen();
 }
 
 class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin {
-  double percentage = 0.0;
-  double newPercentage = 0.0;
+  DateTime targetEndTime = DateTime.now().add(new Duration(minutes: 1));
+  DateTime startTime;
   AnimationController percentageAnimationController;
+  String _letdownText = 'expressing...';
+
+  String get timerString {
+    Duration duration = percentageAnimationController.duration * percentageAnimationController.value;
+    return '${duration.inMinutes}:${(duration.inSeconds % 60)
+        .toString()
+        .padLeft(2, '0')}';
+  }
+
   @override
   void initState() {
     super.initState();
-    setState(() {
-      percentage = 0.0;
-    });
+    startSession();
+    print(widget.setDuration);
     percentageAnimationController = new AnimationController(
         vsync: this,
-        duration: new Duration(milliseconds: 1000)
-    )
-      ..addListener((){
-        setState(() {
-          percentage = lerpDouble(percentage,newPercentage,percentageAnimationController.value);
-        });
-      });
+        duration: new Duration(seconds: widget.setDuration));
+    percentageAnimationController.reverse(
+        from: percentageAnimationController.value == 0.0
+            ? 1.0
+            : percentageAnimationController.value);
   }
+  startSession() {
+//    writeData('s 5');
+//    sessionTimeSeries.clear();
+    print('start');
+    startTime = new DateTime.now();
+    targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
+    print(targetEndTime.toIso8601String());
+  }
+
+  Future<bool> _onWillPop() async {
+    return (await showDialog(
+      context: context,
+      builder: (context) => new AlertDialog(
+        title: new Text('Are you sure?'),
+        content: new Text('Do you want to end this session'),
+        actions: <Widget>[
+          new FlatButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: new Text('No'),
+          ),
+          new FlatButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: new Text('Yes'),
+          ),
+        ],
+      ),
+    )) ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     ThemeData themeData = Theme.of(context);
-    return new Center(
-      child: Container(
-        height: 150.0,
-        width: 150.0,
-        child: new CustomPaint(
-          foregroundPainter: new MyPainter(
-              lineColor: themeData.accentColor,
-              completeColor: themeData.primaryColor,
-              completePercent: percentage,
-              width: 8.0
-          ),
-          child: new Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: new RaisedButton(
-                color: Theme.of(context).primaryColor,
-                splashColor: Colors.blueAccent,
-                shape: new CircleBorder(),
-                child: new Text(
-                  'LET\'S GO!',
-                    style: themeData.textTheme.button.copyWith(color: Colors.white),
+    return new WillPopScope(
+      onWillPop: _onWillPop,
+      child: Scaffold(
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 60),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 25),
+              child: BackButton(
+                color: themeData.disabledColor,
+                onPressed: () => _onWillPop(),
+              ),
+            ),
+
+            TitleSection(
+                titleText: 'You\'re doing great',
+                subText: 'Almost at letdown...'
+            ),
+            SizedBox(height: 50),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  height: 150.0,
+                  width: 150.0,
+
+                  child: Column(
+                    children: <Widget>[
+                      Expanded(
+                        child: Align(
+                          alignment: FractionalOffset.center,
+                          child: AspectRatio(
+                            aspectRatio: 1.0,
+                            child: Stack(
+                              children: <Widget>[
+                                Positioned.fill(
+                                  child: AnimatedBuilder(
+                                    animation: percentageAnimationController,
+                                    builder: (BuildContext context, Widget child) {
+                                      return CustomPaint(
+                                        painter: TimerPainter(
+                                            animation: percentageAnimationController,
+                                            backgroundColor: Colors.white,
+                                            color: themeData.primaryColor),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                Align(
+                                  alignment: FractionalOffset.center,
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: <Widget>[
+
+                                      AnimatedBuilder(
+                                          animation: percentageAnimationController,
+                                          builder: (_, Widget child) {
+                                            return Text(
+                                              timerString,
+                                              style: themeData.textTheme.title,
+                                            );
+                                          }),
+                                      Text(
+                                        _letdownText,
+                                        style: themeData.textTheme.caption,
+                                      )
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                  ),
                 ),
-                onPressed: (){
-                  setState(() {
-                    percentage = newPercentage;
-                    newPercentage += 10;
-                    if(newPercentage>100.0){
-                      percentage=0.0;
-                      newPercentage=0.0;
-                    }
-                    percentageAnimationController.forward(from: 0.0);
-                  });
-                }),
-          ),
+                Container(
+                  margin: EdgeInsets.all(8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: <Widget>[
+                      FloatingActionButton(
+                        child: AnimatedBuilder(
+                            animation: percentageAnimationController,
+                            builder: (_, Widget child) {
+                              return Icon(percentageAnimationController.isAnimating
+                                  ? Icons.pause
+                                  : Icons.play_arrow);
+                            }),
+                        onPressed: () {
+                          if (percentageAnimationController.isAnimating) {
+                            percentageAnimationController.stop();
+                          } else {
+                            percentageAnimationController.reverse(
+                                from: percentageAnimationController.value == 0.0
+                                    ? 1.0
+                                    : percentageAnimationController.value);
+                          }
+                        },
+                      )
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      )
+      ),
     );
+  }
+}
+
+class TimerPainter extends CustomPainter {
+  final Animation<double> animation;
+  final Color backgroundColor;
+  final Color color;
+
+  TimerPainter({this.animation, this.backgroundColor, this.color})
+      : super(repaint: animation);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint paint = Paint()
+      ..color = backgroundColor
+      ..strokeWidth = 5.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawCircle(size.center(Offset.zero), size.width / 2.0, paint);
+    paint.color = color;
+    double progress = (1.0 - animation.value) * 2 * pi;
+    canvas.drawArc(Offset.zero & size, pi * 1.5, -progress, false, paint);
+    // TODO: implement paint
+  }
+
+  @override
+  bool shouldRepaint(TimerPainter old) {
+    return animation.value != old.animation.value ||
+        color != old.color ||
+        backgroundColor != old.backgroundColor;
   }
 }

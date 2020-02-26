@@ -2,6 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'dart:convert' show utf8;
 
+class TitleSection extends StatelessWidget{
+  const TitleSection({
+    Key key, this.titleText, this.subText
+  }) : super(key : key);
+
+  final String titleText;
+  final String subText;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(left: 45, right: 45, top: 10, bottom: 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titleText,
+            style: Theme.of(context).textTheme.display3,
+          ),
+          SizedBox(height: 12),
+          Text(
+            subText,
+            style: Theme.of(context).textTheme.body1,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ScanResultTile extends StatelessWidget {
   const ScanResultTile({Key key, this.result, this.onTap}) : super(key: key);
 
