@@ -1,2 +1,2 @@
-flask
-firebase-admin
+flask==1.1.1
+firebase-admin=3.2.1
