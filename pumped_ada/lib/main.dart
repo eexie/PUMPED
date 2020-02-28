@@ -7,10 +7,10 @@ import './MainPage.dart';
 void main() => runApp(new ExampleApplication());
 
 class ExampleApplication extends StatelessWidget {
-  Color appPrimaryColor = new Color(0xFF1098A0);
-  Color appAccentColor = new Color(0x5FDCEEEE);
-  Color appBackgroundColor = Colors.white;
-  Color appErrorColor = new Color(0xFFFF0C3E);
+  final Color appPrimaryColor = new Color(0xFF1098A0);
+  final Color appAccentColor = new Color(0x5FDCEEEE);
+  final Color appBackgroundColor = Colors.white;
+  final Color appErrorColor = new Color(0xFFFF0C3E);
   @override
   Widget build(BuildContext context) {
     if (isIos) {
