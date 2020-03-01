@@ -8,8 +8,12 @@ import 'dart:async';
 import 'dart:convert' show utf8;
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+//import 'package:firebase_auth/firebase_auth.dart';
 
 class MyAda extends StatefulWidget {
+//  const MyAda({Key key, this.user}) : super(key: key);
+//  final FirebaseUser user;
+
   @override
   _MyAda createState() => new _MyAda();
 }
@@ -96,6 +100,7 @@ class _MyAda extends State<MyAda> {
             children: [
               SizedBox(height: 50),
               TitleSection(
+//                titleText: widget.user.displayName + ', ready to get started?',
                 titleText: 'Ready to get started?',
                 subText: connectionText + '2.5h since you last pumped',
               ),

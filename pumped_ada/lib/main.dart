@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import './helpers/foundation.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import './MainPage.dart';
 
 void main() => runApp(new ExampleApplication());
@@ -11,6 +10,8 @@ class ExampleApplication extends StatelessWidget {
   final Color appAccentColor = new Color(0x5FDCEEEE);
   final Color appBackgroundColor = Colors.white;
   final Color appErrorColor = new Color(0xFFFF0C3E);
+
+
   @override
   Widget build(BuildContext context) {
     if (isIos) {
@@ -51,6 +52,15 @@ class ExampleApplication extends StatelessWidget {
             ),
             iconTheme: IconThemeData(color: Colors.grey[600]),
           ),
+//          localizationsDelegates: [
+//            GlobalMaterialLocalizations.delegate,
+//            GlobalWidgetsLocalizations.delegate,
+//            FFULocalizations.delegate,
+//          ],
+//          supportedLocales: [
+//            const Locale('fr', 'FR'),
+//            const Locale('en', 'US'),
+//          ]
           home: MainPage(),
           debugShowCheckedModeBanner: false,
 
