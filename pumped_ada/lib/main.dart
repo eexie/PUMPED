@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import './helpers/foundation.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 import './MainPage.dart';
+import './helpers/auth.dart';
 
 void main() => runApp(new ExampleApplication());
+
 
 class ExampleApplication extends StatelessWidget {
   final Color appPrimaryColor = new Color(0xFF1098A0);
@@ -38,20 +39,29 @@ class ExampleApplication extends StatelessWidget {
             // text styling for headlines, titles, bodies of text, and more.
             fontFamily: 'Rubik',
             textTheme: TextTheme(
-              display4: TextStyle(fontFamily: 'Rufina', fontSize: 60.0),
-              display3: TextStyle(fontFamily: 'Rufina', fontSize: 22.0),
-              display2: TextStyle(fontFamily: 'Rufina', fontSize: 16.0),
-              display1: TextStyle(fontFamily: 'Rufina', fontSize: 18.0, fontWeight: FontWeight.bold),
-              title: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
-              body2: TextStyle(fontFamily: 'Rufina', fontSize: 18.0, fontWeight: FontWeight.normal),
-              body1: TextStyle(fontSize: 12.0, color: Colors.grey[900]),
+              headline1: TextStyle(fontFamily: 'Rufina', fontSize: 60.0),
+              headline2: TextStyle(fontFamily: 'Rufina', fontSize: 22.0),
+              headline3: TextStyle(fontFamily: 'Rufina', fontSize: 16.0),
+              headline4: TextStyle(fontFamily: 'Rufina', fontSize: 18.0, fontWeight: FontWeight.bold),
+              headline6: TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+              bodyText1: TextStyle(fontFamily: 'Rufina', fontSize: 18.0, fontWeight: FontWeight.normal),
+              bodyText2: TextStyle(fontSize: 12.0, color: Colors.grey[900]),
               button: TextStyle(fontSize: 14.0),
               caption: TextStyle(fontSize: 14.0, fontWeight: FontWeight.w300),
-              subhead: TextStyle(fontSize: 10.0),
+              subtitle1: TextStyle(fontSize: 10.0),
             ),
             iconTheme: IconThemeData(color: Colors.grey[600]),
           ),
-          home: MainPage(),
+//          home: MainPage(),
+          home: StreamBuilder(
+            stream: authService.user,
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                return MainPage();
+              } else {
+                return SignInPage();
+              }
+            }),
           debugShowCheckedModeBanner: false,
 
 

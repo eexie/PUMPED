@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import './helpers/ProductionDataPoint.dart';
 import './helpers/numberpicker.dart';
+import './helpers/auth.dart';
 import 'dart:ui';
 import 'dart:math';
 import './widgets.dart';
@@ -426,17 +427,16 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       print('letdown detected');
     }
     else if (value[0] == 'v') { // current vacuum level
-//      vacuumLvl = int.parse(value.substring(1));
-//      print('current vacuum level ${vacuumLvl}');
-      print('vacuum changed' + value);
+      vacuumLvl = int.parse(value.substring(1));
+      print('current vacuum level ${vacuumLvl}');
+//      print('vacuum changed' + value);
     }
     else if (value[0] == 'e'){ // pumping session ended
-//      createSessionRecord();
+      createSessionRecord();
       print('end session, write to firebase');
     }
     else if(double.tryParse(value[0]) != null){ // received data point
-      print('volume received');
-      print(value);
+      print('volume received '+ value);
       var timeStamp = value[0];
       var time = startTime.add(new Duration(seconds: int.parse(timeStamp)));
       var volume = double.parse(value[1]);
@@ -712,6 +712,12 @@ class SessionEndScreen extends StatelessWidget{
                   .primaryTextTheme
                   .subhead
                   .copyWith(color: Colors.white),
+            ),
+            MaterialButton(
+              onPressed: () => authService.signOut(),
+              color: Colors.red,
+              textColor: Colors.white,
+              child: Text('Signout'),
             ),
           ],
         ),
