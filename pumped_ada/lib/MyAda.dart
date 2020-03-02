@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import './helpers/ProductionDataPoint.dart';
 import './helpers/numberpicker.dart';
-import './helpers/auth.dart';
 import 'dart:ui';
 import 'dart:math';
-import './widgets.dart';
+import 'helpers/widgets.dart';
 import 'dart:async';
 import 'dart:convert' show utf8;
 import 'package:flutter_blue/flutter_blue.dart';
@@ -111,8 +110,26 @@ class _MyAda extends State<MyAda> {
                 ),
               ),
               SizedBox(height: 20),
+          Center(
+              child: Container(
+                height: 150.0,
+                width: 150.0,
+                child: new Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: new RaisedButton(
+                    color: Theme.of(context).accentColor,
+                    shape: new CircleBorder(),
+                    child: new Text(
+                      'Connecting to your Ada...',
+                      style: Theme.of(context).textTheme.caption,
+                    ),
+                    onPressed: null,
+                  ),
+                ),
+              )
+          ),
               StreamBuilder<List<BluetoothDevice>>(
-                stream: Stream.periodic(Duration(seconds: 5))
+                stream: Stream.periodic(Duration(seconds: 2))
                     .asyncMap((_) => FlutterBlue.instance.connectedDevices),
                 initialData: [],
                 builder: (c, snapshot) => Column(
@@ -429,11 +446,16 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     else if (value[0] == 'v') { // current vacuum level
       vacuumLvl = int.parse(value.substring(1));
       print('current vacuum level ${vacuumLvl}');
-//      print('vacuum changed' + value);
     }
     else if (value[0] == 'e'){ // pumping session ended
       createSessionRecord();
       print('end session, write to firebase');
+//      Navigator.pushReplacement(
+//          context,
+//        MaterialPageRoute(
+//          builder: (context) => SessionEndScreen())
+//      );
+      print('go to session summary screen');
     }
     else if(double.tryParse(value[0]) != null){ // received data point
       print('volume received '+ value);
@@ -459,12 +481,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   endSession(){
     writeData('e');
     print('end');
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-          builder: (context) =>
-              SessionEndScreen())
-    );
   }
   changePumpPower(String change){
     writeData('v${change}');
@@ -701,6 +717,9 @@ class SessionEndScreen extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text('End Session Page'),
+      ),
       backgroundColor: Colors.blue,
       body: Center(
         child: Column(
@@ -714,11 +733,17 @@ class SessionEndScreen extends StatelessWidget{
                   .copyWith(color: Colors.white),
             ),
             MaterialButton(
-              onPressed: () => authService.signOut(),
-              color: Colors.red,
+              onPressed: () {
+                Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (context) =>
+                            MyAda()));
+              },
+//              onPressed: () {},
+              color: Colors.blue,
               textColor: Colors.white,
-              child: Text('Signout'),
-            ),
+              child: Text('back'),
+            ) ,
           ],
         ),
       ),

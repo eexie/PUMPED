@@ -52,7 +52,7 @@ class ExampleApplication extends StatelessWidget {
             ),
             iconTheme: IconThemeData(color: Colors.grey[600]),
           ),
-//          home: MainPage(),
+//          home: MainPage(),     EMILY: uncomment this  and comment the next 9 lines
           home: StreamBuilder(
             stream: authService.user,
             builder: (context, snapshot) {
