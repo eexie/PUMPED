@@ -467,8 +467,8 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     print('end');
   }
   changePumpPower(String change){
-    writeData('v${change}');
-    print("changed pump power ${change}");
+    writeData('v ' + change);
+    print("changed pump power " + change);
     vacuumPowerLvls.add(int.parse(change));
   }
   writeData(String data) {
@@ -510,7 +510,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                 Text('Characteristic'),
                 Text(
                     '0x${readCharacteristic.uuid.toString()}',
-                    style: Theme.of(context).textTheme.body1.copyWith(
+                    style: Theme.of(context).textTheme.bodyText2.copyWith(
                         color: Theme.of(context).textTheme.caption.color))
               ],
             ),
@@ -532,7 +532,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                 Text('Characteristic'),
                 Text(
                     '0x${writeCharacteristic.uuid.toString()}',
-                    style: Theme.of(context).textTheme.body1.copyWith(
+                    style: Theme.of(context).textTheme.bodyText2.copyWith(
                         color: Theme.of(context).textTheme.caption.color))
               ],
             ),
@@ -639,7 +639,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                                             builder: (_, Widget child) {
                                               return Text(
                                                 timerString,
-                                                style: themeData.textTheme.title,
+                                                style: themeData.textTheme.headline6,
                                               );
                                             }),
                                         Text(
@@ -791,7 +791,7 @@ class BluetoothOffScreen extends StatelessWidget {
               'Bluetooth Adapter is ${state.toString().substring(15)}.',
               style: Theme.of(context)
                   .primaryTextTheme
-                  .subhead
+                  .subtitle1
                   .copyWith(color: Colors.white),
             ),
           ],
