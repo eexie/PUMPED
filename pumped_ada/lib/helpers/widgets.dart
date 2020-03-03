@@ -13,7 +13,7 @@ class TitleSection extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(left: 45, right: 45, top: 10, bottom: 30),
+      padding: const EdgeInsets.only(left: 38, right: 38, top: 10, bottom: 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

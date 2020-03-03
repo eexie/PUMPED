@@ -110,24 +110,6 @@ class _MyAda extends State<MyAda> {
                 ),
               ),
               SizedBox(height: 20),
-          Center(
-              child: Container(
-                height: 150.0,
-                width: 150.0,
-                child: new Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: new RaisedButton(
-                    color: Theme.of(context).accentColor,
-                    shape: new CircleBorder(),
-                    child: new Text(
-                      'Connecting to your Ada...',
-                      style: Theme.of(context).textTheme.caption,
-                    ),
-                    onPressed: null,
-                  ),
-                ),
-              )
-          ),
               StreamBuilder<List<BluetoothDevice>>(
                 stream: Stream.periodic(Duration(seconds: 2))
                     .asyncMap((_) => FlutterBlue.instance.connectedDevices),
@@ -450,11 +432,13 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     else if (value[0] == 'e'){ // pumping session ended
       createSessionRecord();
       print('end session, write to firebase');
-//      Navigator.pushReplacement(
-//          context,
-//        MaterialPageRoute(
-//          builder: (context) => SessionEndScreen())
-//      );
+      Future.delayed(Duration.zero, () {
+        Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+                builder: (context) => SessionEndScreen())
+        );
+      });
       print('go to session summary screen');
     }
     else if(double.tryParse(value[0]) != null){ // received data point
@@ -574,7 +558,10 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             child: new Text('No'),
           ),
           new FlatButton(
-            onPressed: () {Navigator.of(context).pop(true); print('yes'); endSession();},
+            onPressed: () {
+              endSession();
+              writeData('e');
+            },
             child: new Text('Yes'),
           ),
         ],
@@ -588,19 +575,24 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     return new WillPopScope(
       onWillPop: _onWillPop,
       child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+//          elevation: 0.0,
+//          bottomOpacity: 0.0,
+        ),
         body: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: 40),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 25),
-                child: BackButton(
-                  color: themeData.disabledColor,
-                  onPressed: () =>
-                    Navigator.of(context).pop(true),
-                ),
-              ),
+              SizedBox(height: 10),
+//              Container(
+//                padding: const EdgeInsets.symmetric(vertical: 0, horizontal: 25),
+//                child: BackButton(
+//                  color: themeData.disabledColor,
+//                  onPressed: () =>
+//                    Navigator.of(context).pop(true),
+//                ),
+//              ),
 
               TitleSection(
                   titleText: 'You\'re doing great',
@@ -717,10 +709,7 @@ class SessionEndScreen extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('End Session Page'),
-      ),
-      backgroundColor: Colors.blue,
+      appBar: AppBar(),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -729,17 +718,15 @@ class SessionEndScreen extends StatelessWidget{
               'Great Session!',
               style: Theme.of(context)
                   .primaryTextTheme
-                  .subhead
-                  .copyWith(color: Colors.white),
+                  .subtitle1
+                  .copyWith(color: Colors.grey[600]),
             ),
             MaterialButton(
               onPressed: () {
-                Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (context) =>
-                            MyAda()));
+                Future.delayed(Duration.zero, () {
+                  Navigator.of(context).pop(true);
+                });
               },
-//              onPressed: () {},
               color: Colors.blue,
               textColor: Colors.white,
               child: Text('back'),

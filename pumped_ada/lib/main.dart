@@ -12,6 +12,7 @@ class ExampleApplication extends StatelessWidget {
   final Color appAccentColor = new Color(0x5FDCEEEE);
   final Color appBackgroundColor = Colors.white;
   final Color appErrorColor = new Color(0xFFFF0C3E);
+
   @override
   Widget build(BuildContext context) {
     if (isIos) {
@@ -51,7 +52,16 @@ class ExampleApplication extends StatelessWidget {
               subtitle1: TextStyle(fontSize: 10.0),
             ),
             iconTheme: IconThemeData(color: Colors.grey[600]),
+            appBarTheme: AppBarTheme(
+              elevation: 0.0,
+              color: Colors.transparent,
+              iconTheme: IconThemeData(
+                color: Colors.grey[600],
+              ),
+              textTheme: TextTheme(headline6: TextStyle(fontSize: 16.0, color: Colors.grey[600])),
+            ),
           ),
+
 //          home: MainPage(),     EMILY: uncomment this  and comment the next 9 lines
           home: StreamBuilder(
             stream: authService.user,
