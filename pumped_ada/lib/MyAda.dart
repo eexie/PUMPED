@@ -66,8 +66,7 @@ class _MyAda extends State<MyAda> {
     await targetDevice.connect();
     print('DEVICE CONNECTED');
     setState(() {
-      connectionText = "Device Connected";
-      print('device connected');
+      connectionText = "Ada is connected...";
     });
 
   }
@@ -78,7 +77,7 @@ class _MyAda extends State<MyAda> {
     targetDevice.disconnect();
 
     setState(() {
-      connectionText = "Device Disconnected";
+      connectionText = "Device disconnected...";
     });
   }
 
@@ -109,7 +108,7 @@ class _MyAda extends State<MyAda> {
               ),
               SizedBox(height: 20),
               StreamBuilder<List<BluetoothDevice>>(
-                stream: Stream.periodic(Duration(seconds: 2))
+                stream: Stream.periodic(Duration(seconds: 1))
                     .asyncMap((_) => FlutterBlue.instance.connectedDevices),
                 initialData: [],
                 builder: (c, snapshot) => Column(

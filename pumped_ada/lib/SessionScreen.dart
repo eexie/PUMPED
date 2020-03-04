@@ -27,7 +27,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   final databaseReference = Firestore.instance;
 
   List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current pumping session
-  bool inLetdown = false;
+  bool inLetdown = true;
   int letdownLength = 0;
 
   // session controls
@@ -80,7 +80,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     startTime = new DateTime.now();
     getSessionControls();
     targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
-    print(targetEndTime.toIso8601String());
   }
   void getSessionControls() async {
     final userDocumentReference = databaseReference.collection("users").document("emily");
@@ -99,7 +98,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       //get count of # of sessions in collection
       await sessionCollection.getDocuments().then((value) {
         sessionNumber = value.documents.length + 1;
-        print('documents ${value.documents.length}');
       });
 
       //get last session data to determine current session's controls
@@ -119,7 +117,8 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     String timeOfDay = getTimeOfDay(endTime);
     int sessionLength = endTime.difference(startTime).inSeconds;
 
-    SessionData sessionRecord = new SessionData(sessionTimeSeries,
+    SessionData sessionRecord = new SessionData(
+      sessionTimeSeries,
       letdownLength,
       vacuumPowerLvls.toSet().toList(),
       sessionLength,
@@ -127,6 +126,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       endTime,
       sessionNumber,
       mood,
+      sessionTimeSeries.last.volume,
     );
     int sessionVacuumMaxLvl = vacuumPowerLvls.reduce(max);
     sessionVacuumMaxLvl = downPressed ? sessionVacuumMaxLvl -=2 : sessionVacuumMaxLvl;
@@ -134,7 +134,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     // write document first
     databaseReference.runTransaction((transaction) async{
       await transaction.set(newSession, sessionRecord.toMap());
-      print('got database reference');
 
       // if user was ok with a higher vacuum power setting this session, record it
       if (sessionVacuumMaxLvl > vacuumLvl){
@@ -155,14 +154,15 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   handleReceivedData(String value){
     if(value[0] == 'l'){ // letdown detected
       sessionTimeSeries.clear();
-      inLetdown = true;
+      setState(() {
+        inLetdown = true;
+      });
       letdownLength = DateTime.now().difference(startTime).inSeconds;
       print('letdown detected');
     }
     else if (value[0] == 'v') { // current vacuum level
-//      setState(() {
       vacuumLvl = int.parse(value.substring(1));
-//      });
+      vacuumPowerLvls.add(vacuumLvl);
       print('current vacuum level ${vacuumLvl}');
     }
     else if (value[0] == 'e'){ // pumping session ended
@@ -205,7 +205,10 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   changePumpPower(String change){
     writeData('v ' + change);
     print("changed pump power " + change);
-    vacuumPowerLvls.add(int.parse(change));
+    print('vacuum lvl' + vacuumLvl.toString());
+    setState(() {
+      vacuumLvl = vacuumLvl;
+    });
   }
   writeData(String data) {
     if (writeCharacteristic == null) {
@@ -217,7 +220,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   }
 
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
-    print('services length ${services.length}');
     List<BluetoothService> targetServices = [];
     List<BluetoothCharacteristic> targetCharacteristics = [];
     services.forEach((service) {
@@ -328,7 +330,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   Widget vacuumLvlDots(){
     List<Widget> dots = [];
     int i = 0;
-    print(vacuumLvl);
     for(i; i < vacuumLvl; i++) {
       dots.add(_buildDot(true));
     }
@@ -339,6 +340,39 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     return Row(
       children: dots,
     );
+  }
+
+  Widget pumpControls(){
+    print('letdown ${inLetdown}');
+    if(inLetdown) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          FlatButton(
+            shape: new CircleBorder(),
+            color: Colors.grey[100],
+            child: Icon(Icons.remove),
+            onPressed: () {
+              changePumpPower('d');
+              downPressed = true;
+            },
+          ),
+          vacuumLvlDots(),
+          FlatButton(
+            shape: new CircleBorder(),
+            color: Colors.grey[100],
+            child: Icon(Icons.add),
+            onPressed: () {
+              changePumpPower('u');
+              print('vacuum lvl' + vacuumLvl.toString());
+              setState(() {
+                vacuumLvl = vacuumLvl;
+              });
+            },
+          ),
+        ],
+      );
+    } else return SizedBox(height: 20);
   }
 
   Widget circularProgressTimer(ThemeData themeData){
@@ -426,42 +460,17 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                     child: new Text('Stop'),
                     onPressed: () {endSession();},
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      FlatButton(
-                        shape: new CircleBorder(),
-                        color:  Colors.grey[100],
-                        child: Icon(Icons.remove),
-                        onPressed: () {
-                          changePumpPower('d');
-                          downPressed = true;
-                        },
-                      ),
-                      vacuumLvlDots(),
-                      FlatButton(
-//                        child: new Text('Pump Up'),
-                        shape: new CircleBorder(),
-                        color:  Colors.grey[100],
-                        child: Icon(Icons.add),
-                        onPressed: () {
-                          changePumpPower('u');
-                        },
-                      ),
-                    ],
-
-                  ),
-                  StreamBuilder<List<BluetoothService>>(
+                  pumpControls(),
+                  StreamBuilder<List<BluetoothService>>(  //debug
                     stream: widget.device.services,
                     initialData: [],
                     builder: (c, snapshot) {
                       if(snapshot.hasData) {
                         return Column(
-                          children: _buildServiceTiles(snapshot.data),  //debug
+                          children: _buildServiceTiles(snapshot.data),
                         );
                       }
                       else {
-                        print('not connected');
                         return Column();
                       }
 

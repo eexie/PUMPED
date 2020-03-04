@@ -22,6 +22,7 @@ class SessionData{
   final List<String> mood;
   List<int> pumpPowerLvl;
   int sessionNumber;
+  final double totalVol;
 
   SessionData(this.datapoints,
       this.letdownLength,
@@ -30,7 +31,8 @@ class SessionData{
       this.timeOfDay,
       this.endTime,
       this.sessionNumber,
-      this.mood    //['anxious', 'happy', 'sad', 'tired', 'energetic', 'angry']
+      this.mood,    //['anxious', 'happy', 'sad', 'tired', 'energetic', 'angry']
+      this.totalVol
       );
 
   Map<String, dynamic> toMap() {
@@ -48,6 +50,7 @@ class SessionData{
       'endTime': endTime,
       'sessionNumber': sessionNumber,
       'mood': mood,
+      'totalVol': totalVol,
     };
   }
 }
