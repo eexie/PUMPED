@@ -12,7 +12,6 @@ class MyAda extends StatefulWidget {
 }
 
 class _MyAda extends State<MyAda> {
-//  final databaseReference = Firestore.instance;
   List<ProductionDataPoint> sessionTimeSeries; //Timeseries for the current pumping session
   int _duration = 20;
 

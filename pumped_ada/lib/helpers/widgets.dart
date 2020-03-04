@@ -372,4 +372,43 @@ class MyPainter extends CustomPainter{
     return true;
   }
 }
+class HealthMonitoringModule extends StatelessWidget{
+  const HealthMonitoringModule({Key key, this.detectionTime, this.detectionType, this.sessionDateTime}) : super(key: key);
 
+  final  String detectionTime;
+  final String detectionType;
+  final DateTime sessionDateTime;
+
+  @override
+  Widget build(BuildContext context) {
+    String titleMessage = detectionTime + ', we detected ' + detectionType;
+    String subtitleMessage = sessionDateTime.toString();
+    return Center(
+      child: Card(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            ListTile(
+              title:  Text(
+                  titleMessage,
+                  style: Theme.of(context).textTheme.bodyText2,
+              ),
+              subtitle: new Text(
+                  subtitleMessage,
+                  style: Theme.of(context).textTheme.caption,
+              ),
+            ),
+            ButtonBar(
+              children: <Widget>[
+                FlatButton(
+                  child: Text('CONTACT AN ADA EXPERT'),
+                  onPressed: () { /* ... */ },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

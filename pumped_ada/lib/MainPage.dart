@@ -4,8 +4,8 @@ import 'package:flutter/cupertino.dart';
 //import './BLEPage.dart';
 import './MyAda.dart';
 import './Home.dart';
-import './PlaceHolderWidget.dart';
 import './helpers/widgets.dart';
+import './Connect.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 
 //import './LineChart.dart';
@@ -25,11 +25,9 @@ class _MainPage extends State<MainPage> {
   }
 
   List<Widget> tabs = [
-//    BLEPage(),
-//    PlaceholderWidget(Colors.green),
     HomeScreen(),
     MyAda(),
-    PlaceholderWidget(Colors.green),
+    ConnectScreen(),
   ];
 
   @override
