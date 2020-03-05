@@ -46,10 +46,10 @@ class _MainPage extends State<MainPage> {
           initialData: BluetoothState.unknown,
           builder: (c, snapshot) {
             final state = snapshot.data;
-            if (state == BluetoothState.on) {
+            //if (state == BluetoothState.on) {
               return tabs[_currentIndex];
-            }
-            return BluetoothOffScreen(state: state);
+           // }
+            //return BluetoothOffScreen(state: state);
           }),
       bottomNavigationBar: BottomNavigationBar(
         onTap: onTabTapped,

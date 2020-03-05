@@ -62,16 +62,16 @@ class ExampleApplication extends StatelessWidget {
             ),
           ),
 
-//          home: MainPage(),     EMILY: uncomment this  and comment the next 9 lines
-          home: StreamBuilder(
-            stream: authService.user,
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                return MainPage();
-              } else {
-                return SignInPage();
-              }
-            }),
+          home: MainPage(),     //EMILY: uncomment this  and comment the next 9 lines
+//          home: StreamBuilder(
+//            stream: authService.user,
+//            builder: (context, snapshot) {
+//              if (snapshot.hasData) {
+//                return MainPage();
+//              } else {
+//                return SignInPage();
+//              }
+//            }),
           debugShowCheckedModeBanner: false,
 
 
