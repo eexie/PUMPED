@@ -27,3 +27,16 @@ google-services.json
 
 #iOS
 GoogleServices-Info.plist
+
+# created by pub (flutter)
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+.idea/        // IntelliJ
+.DS_Store     // Mac
+
+.session.vim //vim
+
+key.json 	// personalization API key
