@@ -40,3 +40,5 @@ pubspec.lock
 .session.vim //vim
 
 key.json 	// personalization API key
+
+.idea/
