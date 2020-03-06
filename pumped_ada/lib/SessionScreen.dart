@@ -26,14 +26,13 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   final String CHARACTERISTIC_UUID = "6e400003-b5a3-f393-e0a9-e50e24dcca9e";
   final databaseReference = Firestore.instance;
 
-  List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current pumping session
+  List<ProductionDataPoint> sessionTimeSeries = []; //Timeseries for the current _blocing session
   bool inLetdown = true;
   int letdownLength = 0;
 
   // session controls
-  int letdownVacuumLvl = 0;
   int vacuumLvl = 0;
-  int letdownSpeed = 0;
+  int maxVacuumLvl = 0;
   bool downPressed = false;
 
   // session record data
@@ -48,6 +47,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   DocumentReference sessionControlsReference;
 
   BluetoothCharacteristic writeCharacteristic;
+  BluetoothCharacteristic readCharacteristic;
 
   String get timerString {
     Duration duration = percentageAnimationController.duration * percentageAnimationController.value;
@@ -62,8 +62,10 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   @override
   void initState() {
     super.initState();
-    startSession();
-    print(widget.setDuration);
+    sessionTimeSeries.clear();
+    startTime = new DateTime.now();
+    getSessionControls();
+//    startSession();
     percentageAnimationController = new AnimationController(
         vsync: this,
         duration: new Duration(seconds: widget.setDuration));
@@ -72,13 +74,38 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             ? 1.0
             : percentageAnimationController.value);
   }
+
+  @override
+  void dispose() {
+    percentageAnimationController.dispose();
+    super.dispose();
+  }
   startSession() async {
-    writeData('s 5');
-    sessionTimeSeries.clear();
+
+//    print('vacuum lvl' + vacuumLvl.toString());
     print('start');
-    await widget.device.discoverServices();
-    startTime = new DateTime.now();
-    getSessionControls();
+    List<BluetoothService> targetServices = [];
+    List<BluetoothCharacteristic> targetCharacteristics = [];
+    List<BluetoothService> services = await widget.device.discoverServices();
+    services.forEach((service) {
+      if (service.uuid.toString() == SERVICE_UUID) {
+        targetServices.add(service);
+        targetCharacteristics = targetServices[0].characteristics;
+      }
+
+    });
+    readCharacteristic = targetCharacteristics[0];
+    readCharacteristic.setNotifyValue(true);
+
+    writeCharacteristic = targetCharacteristics[1];
+    print(writeCharacteristic.toString());
+
+    String vacuumLvlToSend = vacuumLvl<10 ? '0' + vacuumLvl.toString() : vacuumLvl.toString();
+    Future.delayed(Duration.zero, () {
+      writeData('s' + vacuumLvlToSend);
+    });
+    print('s'+vacuumLvlToSend);
+
     targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
   }
   void getSessionControls() async {
@@ -93,22 +120,20 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     CollectionReference personalizationCollection = userDocumentReference.collection('personalization');
     sessionControlsReference = personalizationCollection.document('sessionControls');
 
-    databaseReference.runTransaction((transaction) async{
-
-      //get count of # of sessions in collection
-      await sessionCollection.getDocuments().then((value) {
-        sessionNumber = value.documents.length + 1;
-      });
-
-      //get last session data to determine current session's controls
-      await transaction.get(sessionControlsReference).then((value) {
-        setState(() {
-          vacuumLvl = value.data['vacuumPower'];
-          letdownSpeed = value.data['letdownSpeed'];
-          letdownVacuumLvl = value.data['letdownVacuum'];
-        });
+    //get count of # of sessions in collection
+    await sessionCollection.getDocuments().then((value) {
+      sessionNumber = value.documents.length + 1;
+    });
+    print('sessionNumber'+ sessionNumber.toString());
+    //get last session data to determine current session's controls
+    await sessionControlsReference.get().then((value){
+      setState(() {
+        vacuumLvl = value.data['vacuumLvl'];
+        maxVacuumLvl = value.data['maxVacuumLvl'];
       });
     });
+    print('vacuumLvl' + vacuumLvl.toString() + ' maxVacuumLvl' + maxVacuumLvl.toString());
+    startSession();
   }
   void createSessionRecord() async {
     print('creating record');
@@ -116,7 +141,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
 
     String timeOfDay = getTimeOfDay(endTime);
     int sessionLength = endTime.difference(startTime).inSeconds;
-
+    double totalVol = sessionTimeSeries.isEmpty ? 0 : sessionTimeSeries.last.volume;
     SessionData sessionRecord = new SessionData(
       sessionTimeSeries,
       letdownLength,
@@ -126,23 +151,22 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       endTime,
       sessionNumber,
       mood,
-      sessionTimeSeries.last.volume,
+      totalVol,
+//      sessionTimeSeries.last.volume,
     );
     int sessionVacuumMaxLvl = vacuumPowerLvls.reduce(max);
     sessionVacuumMaxLvl = downPressed ? sessionVacuumMaxLvl -=2 : sessionVacuumMaxLvl;
+    print(sessionVacuumMaxLvl);
 
     // write document first
     databaseReference.runTransaction((transaction) async{
+//      sessionRecord.sessionNumber = sessionNumber;
       await transaction.set(newSession, sessionRecord.toMap());
 
       // if user was ok with a higher vacuum power setting this session, record it
-      if (sessionVacuumMaxLvl > vacuumLvl){
-        vacuumLvl = sessionVacuumMaxLvl;
-        await transaction.set(sessionControlsReference, {'vacuumPower': vacuumPowerLvls});
-      }
-
-      sessionRecord.sessionNumber = sessionNumber;
-      await transaction.set(newSession, sessionRecord.toMap());
+      maxVacuumLvl = sessionVacuumMaxLvl > maxVacuumLvl? sessionVacuumMaxLvl : maxVacuumLvl;
+      await transaction.set(sessionControlsReference, {'vacuumLvl': vacuumLvl, 'maxVacuumLvl': maxVacuumLvl});
+//      await transaction.set(newSession, sessionRecord.toMap());
       print("wrote data");
     });
   }
@@ -166,22 +190,27 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       print('current vacuum level ${vacuumLvl}');
     }
     else if (value[0] == 'e'){ // pumping session ended
-//      createSessionRecord();
-      print('end session, write to firebase');
+
       Future.delayed(Duration.zero, () {
+        createSessionRecord();
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-                builder: (context) => SessionEndScreen())
+                builder: (context) => SessionEndScreen(
+//                    totalVol: sessionTimeSeries.last.volume,
+                  totalVol: 10,
+//                    sessionLength: Duration(seconds: endTime.difference(startTime).inSeconds)
+                  sessionLength: Duration(seconds: 10),
+                ))
         );
+        print('end session, write to firebase');
+        createSessionRecord();
       });
-      print('go to session summary screen');
     }
-    else if(double.tryParse(value[0]) != null){ // received data point
+    else if(double.tryParse(value) != null){ // received data point
       print('volume received '+ value);
-      var timeStamp = value[0];
-      var time = startTime.add(new Duration(seconds: int.parse(timeStamp)));
-      var volume = double.parse(value[1]);
+      var time = DateTime.now();
+      var volume = double.parse(value);
       ProductionDataPoint dataPoint = new ProductionDataPoint(time, volume);
       sessionTimeSeries.add(dataPoint);
     }
@@ -203,7 +232,8 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     print('end');
   }
   changePumpPower(String change){
-    writeData('v ' + change);
+    writeData('v' + change);
+    writeData('v' + change);
     print("changed pump power " + change);
     print('vacuum lvl' + vacuumLvl.toString());
     setState(() {
@@ -220,19 +250,21 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   }
 
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
-    List<BluetoothService> targetServices = [];
-    List<BluetoothCharacteristic> targetCharacteristics = [];
-    services.forEach((service) {
-      if (service.uuid.toString() == SERVICE_UUID) {
-        targetServices.add(service);
-      }
+//    List<BluetoothService> targetServices = [];
+//    List<BluetoothCharacteristic> targetCharacteristics = [];
+//    BluetoothCharacteristic readCharacteristic;
+//    services.forEach((service) {
+//      if (service.uuid.toString() == SERVICE_UUID) {
+//        targetServices.add(service);
+//        if(targetServices.length==4) {
+//          readCharacteristic = targetServices[0].characteristics[0];
+//          print(readCharacteristic.uuid.toString());
+//          readCharacteristic.setNotifyValue(true).then((value) => print('read characteristic set'));
+//        }
+//      }
+//    });
 
-    });
-    targetCharacteristics = targetServices[0].characteristics;
-    targetCharacteristics[0].setNotifyValue(true);
-
-    BluetoothCharacteristic readCharacteristic = targetCharacteristics[0];
-    writeCharacteristic = targetCharacteristics[1];
+//    writeCharacteristic = targetCharacteristics[1];
     return [
       StreamBuilder<List<int>>(
         stream: readCharacteristic.value,
@@ -330,7 +362,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   Widget vacuumLvlDots(){
     List<Widget> dots = [];
     int i = 0;
-    for(i; i < vacuumLvl; i++) {
+    for(i; i < vacuumLvl/2; i++) {
       dots.add(_buildDot(true));
     }
     for(i; i<6; i++){
@@ -355,6 +387,12 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             onPressed: () {
               changePumpPower('d');
               downPressed = true;
+              Future.delayed(Duration.zero, ()
+              {
+                setState(() {
+                  vacuumLvl = vacuumLvl;
+                });
+              });
             },
           ),
           vacuumLvlDots(),
@@ -365,8 +403,11 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             onPressed: () {
               changePumpPower('u');
               print('vacuum lvl' + vacuumLvl.toString());
-              setState(() {
-                vacuumLvl = vacuumLvl;
+              Future.delayed(Duration.zero, ()
+              {
+                setState(() {
+                  vacuumLvl = vacuumLvl;
+                });
               });
             },
           ),
@@ -456,23 +497,24 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                 children: [
                   circularProgressTimer(themeData),
                   SizedBox(height: 20),
+                  pumpControls(),
                   RaisedButton(
-                    child: new Text('Stop'),
+                    child: new Text('STOP', style: themeData.textTheme.button.copyWith(color: Colors.white)),
                     onPressed: () {endSession();},
                   ),
-                  pumpControls(),
-                  StreamBuilder<List<BluetoothService>>(  //debug
+                  StreamBuilder<List<BluetoothService>>(
                     stream: widget.device.services,
                     initialData: [],
                     builder: (c, snapshot) {
                       if(snapshot.hasData) {
-                        return Column(
+                        return Column( //debug
                           children: _buildServiceTiles(snapshot.data),
                         );
                       }
                       else {
                         return Column();
                       }
+//                      return Column();
 
                     },
                   ),
@@ -487,30 +529,91 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
 }
 
 class SessionEndScreen extends StatelessWidget{
+  const SessionEndScreen({Key key, this.totalVol, this.sessionLength}) : super(key: key);
+  final double totalVol;
+  final Duration sessionLength;
+
   @override
   Widget build(BuildContext context) {
+    ThemeData themeData = Theme.of(context);
     return Scaffold(
       appBar: AppBar(),
-      body: Center(
+      body: Container(
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              'Great Session!',
-              style: Theme.of(context)
-                  .primaryTextTheme
-                  .subtitle1
-                  .copyWith(color: Colors.grey[600]),
+            TitleSection(
+              titleText: 'Great Session!',
+              subText: '',
             ),
-            MaterialButton(
+            Center(
+                child: Container(
+                  height: 150.0,
+                  width: 150.0,
+                  decoration: ShapeDecoration(
+                    color: themeData.primaryColor,
+                    shape: CircleBorder(),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+//                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        totalVol.toString() + ' mL',
+                        style: themeData.textTheme.headline6.copyWith(color: Colors.white),
+                      ),
+                      Text(
+                        '${sessionLength.inMinutes}:${(sessionLength.inSeconds % 60)
+                        .toString()
+                        .padLeft(2, '0')}',
+                        style: themeData.textTheme.bodyText2.copyWith(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                )
+            ),
+            SizedBox(height: 20),
+//            Container(
+//              padding: const EdgeInsets.only(left: 38, right: 38),
+//              child: Column(
+//                crossAxisAlignment: CrossAxisAlignment.start,
+//                children: [
+//                  Text(
+//                      'How was this session?',
+//                      style: themeData.textTheme.headline3
+//                  ),
+//                  SizedBox(
+//                    height: 150.0,
+//                    child: ListView(
+//                        children:<Widget>[
+//                          ListTile(
+//                            leading: Icon(Icons.radio_button_unchecked),
+//                            title: Text('Map'),
+//                          ),
+//                          ListTile(
+//                            leading: Icon(Icons.radio_button_checked),
+//                            title: Text('Album'),
+//                          ),
+//                          ListTile(
+//                            leading: Icon(Icons.phone),
+//                            title: Text('Phone'),
+//                          ),
+//                        ]
+//                    ),
+//                  ),
+//                ],
+//              ),
+//            ),
+
+            FlatButton(
               onPressed: () {
                 Future.delayed(Duration.zero, () {
                   Navigator.of(context).pop(true);
                 });
               },
-              color: Colors.blue,
-              textColor: Colors.white,
-              child: Text('back'),
+//              color: Colors.blue,
+//              textColor: Colors.white,
+              child: Text('EXIT'),
             ) ,
           ],
         ),

@@ -135,7 +135,9 @@ class _MyAda extends State<MyAda> {
                                       'LET\'S GO!',
                                       style: Theme.of(context).textTheme.button.copyWith(color: Colors.white),
                                     ),
-                                    onPressed: () { Navigator.of(context).push(
+                                    onPressed: () {
+                                      print ('device name ' + d.name);
+                                      Navigator.of(context).push(
                                         MaterialPageRoute(
                                             builder: (context) =>
                                                 SessionScreen(setDuration: _duration * 60, device: d)));
