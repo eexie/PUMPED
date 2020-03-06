@@ -373,11 +373,18 @@ class MyPainter extends CustomPainter{
   }
 }
 class HealthMonitoringModule extends StatelessWidget{
-  const HealthMonitoringModule({Key key, this.detectionTime, this.detectionType, this.sessionDateTime}) : super(key: key);
+  const HealthMonitoringModule({
+    Key key,
+    this.detectionTime,
+    this.detectionType,
+    this.sessionDateTime,
+    this.onPressedCallback,
+  }) : super(key: key);
 
-  final  String detectionTime;
+  final String detectionTime;
   final String detectionType;
   final DateTime sessionDateTime;
+  final VoidCallback onPressedCallback;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +409,7 @@ class HealthMonitoringModule extends StatelessWidget{
               children: <Widget>[
                 FlatButton(
                   child: Text('CONTACT AN ADA EXPERT'),
-                  onPressed: () { /* ... */ },
+                  onPressed: () { onPressedCallback; },
                 ),
               ],
             ),
