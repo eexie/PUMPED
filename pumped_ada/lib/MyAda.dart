@@ -95,6 +95,7 @@ class _MyAda extends State<MyAda> {
                 titleText: 'Ready to get started?',
                 subText: connectionText + '2.5h since you last pumped',
               ),
+              SizedBox(height: 20),
               Center(
                 child: Container(
                   child: NumberPicker.integer(

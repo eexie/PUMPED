@@ -41,6 +41,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   DateTime startTime;
   DateTime endTime;
   int sessionNumber = 0;
+  double totalVol;
   List<String> mood = [];
   CollectionReference sessionCollection;
   DocumentReference newSession;
@@ -141,7 +142,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
 
     String timeOfDay = getTimeOfDay(endTime);
     int sessionLength = endTime.difference(startTime).inSeconds;
-    double totalVol = sessionTimeSeries.isEmpty ? 0 : sessionTimeSeries.last.volume;
+    totalVol = sessionTimeSeries.isEmpty ? 0 : sessionTimeSeries.last.volume;
     SessionData sessionRecord = new SessionData(
       sessionTimeSeries,
       letdownLength,
@@ -152,7 +153,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       sessionNumber,
       mood,
       totalVol,
-//      sessionTimeSeries.last.volume,
     );
     int sessionVacuumMaxLvl = vacuumPowerLvls.reduce(max);
     sessionVacuumMaxLvl = downPressed ? sessionVacuumMaxLvl -=2 : sessionVacuumMaxLvl;
@@ -190,17 +190,14 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       print('current vacuum level ${vacuumLvl}');
     }
     else if (value[0] == 'e'){ // pumping session ended
-
       Future.delayed(Duration.zero, () {
         createSessionRecord();
         Navigator.pushReplacement(
             context,
             MaterialPageRoute(
                 builder: (context) => SessionEndScreen(
-//                    totalVol: sessionTimeSeries.last.volume,
-                  totalVol: 10,
-//                    sessionLength: Duration(seconds: endTime.difference(startTime).inSeconds)
-                  sessionLength: Duration(seconds: 10),
+                    totalVol: totalVol,
+                    sessionLength: Duration(seconds: endTime.difference(startTime).inSeconds)
                 ))
         );
         print('end session, write to firebase');

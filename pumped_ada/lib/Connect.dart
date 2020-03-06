@@ -36,21 +36,27 @@ class ConnectScreen extends StatelessWidget{
               titleText: 'We\'re here for you',
               subText: 'Connect with an Ada expert and your community',
             ),
-            SizedBox(height: 20),
-            HealthMonitoringModule(
-              detectionTime: 'Last week',
-              detectionType: 'long letdown times',
-              sessionDateTime: DateTime.now(),
-              onPressedCallback: () {
-                pr.show();
-                Future.delayed(Duration(seconds: 3)).then((value) {
-                  pr.hide().whenComplete(() {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (BuildContext context) => CallExpertScreen()));
-                  });
-                });
-              },
-            ),
+            Container(
+                padding: const EdgeInsets.symmetric(horizontal: 19),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: 20),
+                      HealthMonitoringModule(
+                        detectionTime: 'Last week',
+                        detectionType: 'long letdown times',
+                        sessionDateTime: DateTime.now(),
+                        onPressedCallback: () {
+                          pr.show();
+                          Future.delayed(Duration(seconds: 3)).then((value) {
+                            pr.hide().whenComplete(() {
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (BuildContext context) => CallExpertScreen()));
+                            });
+                          });
+                        },
+                      ),
+                    ])),
           ],
         ),
       ),
