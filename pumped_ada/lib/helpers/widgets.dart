@@ -14,7 +14,7 @@ class TitleSection extends StatelessWidget{
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(left: 38, right: 38, top: 10, bottom: 30),
+      padding: const EdgeInsets.only(left: 38, right: 38, top: 10, bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -23,12 +23,26 @@ class TitleSection extends StatelessWidget{
             style: Theme.of(context).textTheme.headline2,
           ),
           SizedBox(height: 12),
-          Text(
-            subText,
-            style: Theme.of(context).textTheme.bodyText2,
-          ),
         ],
       ),
+    );
+  }
+  Widget addSubText(BuildContext context){
+    List<Widget> subTextWidgets = [];
+    if (subText != null){
+      subTextWidgets.add(SizedBox(height: 12));
+      subTextWidgets.add(
+        Text(
+          subText,
+          style: Theme.of(context).textTheme.bodyText2,
+        )
+      );
+    }
+    else {
+      subTextWidgets.add(SizedBox(height: 5));
+    }
+    return Column(
+      children: subTextWidgets,
     );
   }
 }

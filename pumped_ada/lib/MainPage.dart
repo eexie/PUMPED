@@ -24,11 +24,32 @@ class _MainPage extends State<MainPage> {
     });
   }
 
-  List<Widget> tabs = [
-    HomeScreen(),
-    MyAda(),
-    ConnectScreen(),
-  ];
+  Widget tabPage() {
+    switch(_currentIndex) {
+      case 0:
+        return HomeScreen(goToMyAda, goToConnect);
+        break;
+      case 1:
+        return MyAda();
+        break;
+      case 2:
+        return ConnectScreen();
+        break;
+    }
+  }
+
+
+  void goToMyAda() {
+    setState(() {
+      _currentIndex = 1;
+    });
+  }
+
+  void goToConnect() {
+    setState(() {
+      _currentIndex = 2;
+    });
+  }
 
   @override
   void initState() {
@@ -47,7 +68,7 @@ class _MainPage extends State<MainPage> {
           builder: (c, snapshot) {
             final state = snapshot.data;
             //if (state == BluetoothState.on) {
-              return tabs[_currentIndex];
+              return tabPage();
            // }
             //return BluetoothOffScreen(state: state);
           }),
