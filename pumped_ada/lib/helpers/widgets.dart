@@ -397,13 +397,14 @@ class HealthMonitoringModule extends StatelessWidget{
 
   final String detectionTime;
   final String detectionType;
-  final DateTime sessionDateTime;
+//  final DateTime sessionDateTime;
+  final String sessionDateTime;
   final VoidCallback onPressedCallback;
 
   @override
   Widget build(BuildContext context) {
     String titleMessage = detectionTime + ', we detected ' + detectionType;
-    String subtitleMessage = sessionDateTime.toString();
+    String subtitleMessage = sessionDateTime;
     return Center(
       child: Card(
         child: Column(

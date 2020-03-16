@@ -2,7 +2,7 @@
 
 class ProductionDataPoint{
   final DateTime time;
-  final double volume;
+  final int volume;
 
   ProductionDataPoint(this.time, this.volume);
   Map<String, dynamic> toMap() {
@@ -22,7 +22,7 @@ class SessionData{
   final List<String> mood;
   List<int> pumpPowerLvl;
   int sessionNumber;
-  final double totalVol;
+  final int totalVol;
 
   SessionData(this.datapoints,
       this.letdownLength,

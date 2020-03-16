@@ -41,8 +41,9 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   DateTime startTime;
   DateTime endTime;
   int sessionNumber = 0;
-  double totalVol;
+  int totalVol;
   List<String> mood = [];
+  int sessionLength;
   CollectionReference sessionCollection;
   DocumentReference newSession;
   DocumentReference sessionControlsReference;
@@ -61,12 +62,9 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   }
 
   @override
-  void initState() {
+  void initState(){
     super.initState();
-    sessionTimeSeries.clear();
-    startTime = new DateTime.now();
     getSessionControls();
-//    startSession();
     percentageAnimationController = new AnimationController(
         vsync: this,
         duration: new Duration(seconds: widget.setDuration));
@@ -74,6 +72,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
         from: percentageAnimationController.value == 0.0
             ? 1.0
             : percentageAnimationController.value);
+    Future.delayed(Duration.zero, () {});
   }
 
   @override
@@ -82,8 +81,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     super.dispose();
   }
   startSession() async {
-
-//    print('vacuum lvl' + vacuumLvl.toString());
     print('start');
     List<BluetoothService> targetServices = [];
     List<BluetoothCharacteristic> targetCharacteristics = [];
@@ -105,11 +102,22 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     Future.delayed(Duration.zero, () {
       writeData('s' + vacuumLvlToSend);
     });
-    print('s'+vacuumLvlToSend);
 
     targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
   }
+  void rampUpVacuum() {
+    print('ramp up by ${maxVacuumLvl-vacuumLvl} lvls');
+    for(int i = 0; i < maxVacuumLvl-vacuumLvl; i++){
+      Future.delayed(Duration(seconds: 5), () {
+        changePumpPower('u');
+      });
+    }
+  }
   void getSessionControls() async {
+    sessionTimeSeries.clear();
+    startTime = new DateTime.now();
+//    getSessionControls();
+    print('get controls');
     final userDocumentReference = databaseReference.collection("users").document("emily");
     String collectionTitle = startTime.month.toString()
         + '-' + startTime.day.toString()
@@ -125,23 +133,94 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
     await sessionCollection.getDocuments().then((value) {
       sessionNumber = value.documents.length + 1;
     });
-    print('sessionNumber'+ sessionNumber.toString());
     //get last session data to determine current session's controls
     await sessionControlsReference.get().then((value){
       setState(() {
         vacuumLvl = value.data['vacuumLvl'];
-        maxVacuumLvl = value.data['maxVacuumLvl'];
       });
+      maxVacuumLvl = value.data['maxVacuumLvl'];
     });
     print('vacuumLvl' + vacuumLvl.toString() + ' maxVacuumLvl' + maxVacuumLvl.toString());
-    startSession();
+//    startSession();
+    //discover services
+    print('discover serviecs');
+    List<BluetoothService> targetServices = [];
+    List<BluetoothCharacteristic> targetCharacteristics = [];
+    List<BluetoothService> services = await widget.device.discoverServices();
+    services.forEach((service) {
+      if (service.uuid.toString() == SERVICE_UUID) {
+        targetServices.add(service);
+        targetCharacteristics = targetServices[0].characteristics;
+      }
+
+    });
+    readCharacteristic = targetCharacteristics[0];
+    readCharacteristic.setNotifyValue(true);
+
+    writeCharacteristic = targetCharacteristics[1];
+    print(writeCharacteristic.toString());
+
+    String vacuumLvlToSend = vacuumLvl<10 ? '0' + vacuumLvl.toString() : vacuumLvl.toString();
+    Future.delayed(Duration.zero, () {
+      writeData('s' + vacuumLvlToSend);
+    });
+
+    targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
+
+    ////
+//    final userDocumentReference = databaseReference.collection("users").document("emily");
+//    String collectionTitle = startTime.month.toString()
+//        + '-' + startTime.day.toString()
+//        + '-' + startTime.year.toString(); //creates a collection of sessions for the day, if it doesn't exist
+//    sessionCollection = userDocumentReference.collection(collectionTitle);
+//    String documentTitle = startTime.hour.toString() + '-' + startTime.minute.toString();
+//    newSession = sessionCollection.document(documentTitle);
+//
+//    CollectionReference personalizationCollection = userDocumentReference.collection('personalization');
+//    sessionControlsReference = personalizationCollection.document('sessionControls');
+//
+//    //get count of # of sessions in collection
+//    await sessionCollection.getDocuments().then((value) {
+//      sessionNumber = value.documents.length + 1;
+//    });
+//    //get last session data to determine current session's controls
+//    await sessionControlsReference.get().then((value){
+//      setState(() {
+//        vacuumLvl = value.data['vacuumLvl'];
+//      });
+//      maxVacuumLvl = value.data['maxVacuumLvl'];
+//    });
+//    print('vacuumLvl' + vacuumLvl.toString() + ' maxVacuumLvl' + maxVacuumLvl.toString());
+////    startSession();
+//    List<BluetoothService> targetServices = [];
+//    List<BluetoothCharacteristic> targetCharacteristics = [];
+//    List<BluetoothService> services = await widget.device.discoverServices();
+//    services.forEach((service) {
+//      if (service.uuid.toString() == SERVICE_UUID) {
+//        targetServices.add(service);
+//        targetCharacteristics = targetServices[0].characteristics;
+//      }
+//
+//    });
+//    readCharacteristic = targetCharacteristics[0];
+//    readCharacteristic.setNotifyValue(true);
+//
+//    writeCharacteristic = targetCharacteristics[1];
+//    print(writeCharacteristic.toString());
+//
+//    String vacuumLvlToSend = vacuumLvl<10 ? '0' + vacuumLvl.toString() : vacuumLvl.toString();
+//    Future.delayed(Duration.zero, () {
+//      writeData('s' + vacuumLvlToSend);
+//    });
+//
+//    targetEndTime = DateTime.now().add(Duration(seconds: widget.setDuration));
   }
   void createSessionRecord() async {
     print('creating record');
     DateTime endTime = DateTime.now();
 
     String timeOfDay = getTimeOfDay(endTime);
-    int sessionLength = endTime.difference(startTime).inSeconds;
+    sessionLength = endTime.difference(startTime).inSeconds;
     totalVol = sessionTimeSeries.isEmpty ? 0 : sessionTimeSeries.last.volume;
     SessionData sessionRecord = new SessionData(
       sessionTimeSeries,
@@ -166,7 +245,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       // if user was ok with a higher vacuum power setting this session, record it
       maxVacuumLvl = sessionVacuumMaxLvl > maxVacuumLvl? sessionVacuumMaxLvl : maxVacuumLvl;
       await transaction.set(sessionControlsReference, {'vacuumLvl': vacuumLvl, 'maxVacuumLvl': maxVacuumLvl});
-//      await transaction.set(newSession, sessionRecord.toMap());
+      await transaction.set(newSession, sessionRecord.toMap());
       print("wrote data");
     });
   }
@@ -178,11 +257,10 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   handleReceivedData(String value){
     if(value[0] == 'l'){ // letdown detected
       sessionTimeSeries.clear();
-      setState(() {
-        inLetdown = true;
-      });
+      inLetdown = true;
       letdownLength = DateTime.now().difference(startTime).inSeconds;
       print('letdown detected');
+      rampUpVacuum();
     }
     else if (value[0] == 'v') { // current vacuum level
       vacuumLvl = int.parse(value.substring(1));
@@ -197,20 +275,22 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             MaterialPageRoute(
                 builder: (context) => SessionEndScreen(
                     totalVol: totalVol,
-                    sessionLength: Duration(seconds: endTime.difference(startTime).inSeconds)
+                    sessionLength: Duration(seconds: sessionLength)
                 ))
         );
         print('end session, write to firebase');
         createSessionRecord();
       });
     }
-    else if(double.tryParse(value) != null){ // received data point
+    else if(int.tryParse(value[0])!=null){ // received data point
       print('volume received '+ value);
       var time = DateTime.now();
-      var volume = double.parse(value);
+      var volume = int.parse(value[0]);
+      volume = int.tryParse(value[1]) != null ? volume * 10 + int.parse(value[1]) : volume;
       ProductionDataPoint dataPoint = new ProductionDataPoint(time, volume);
       sessionTimeSeries.add(dataPoint);
     }
+//    print(double.parse(value));
   }
   String getTimeOfDay (DateTime endTime){
     int sessionHour = endTime.hour;
@@ -230,11 +310,15 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   }
   changePumpPower(String change){
     writeData('v' + change);
-    writeData('v' + change);
+//    writeData('v' + change);
     print("changed pump power " + change);
-    print('vacuum lvl' + vacuumLvl.toString());
-    setState(() {
-      vacuumLvl = vacuumLvl;
+    vacuumLvl = (change == 'v') ? 1 + vacuumLvl : -1 + vacuumLvl;
+    Future.delayed(Duration.zero, ()
+    {
+      print('vacuum lvl' + vacuumLvl.toString());
+      setState(() {
+        vacuumLvl = vacuumLvl;
+      });
     });
   }
   writeData(String data) {
@@ -247,21 +331,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
   }
 
   List<Widget> _buildServiceTiles(List<BluetoothService> services) {
-//    List<BluetoothService> targetServices = [];
-//    List<BluetoothCharacteristic> targetCharacteristics = [];
-//    BluetoothCharacteristic readCharacteristic;
-//    services.forEach((service) {
-//      if (service.uuid.toString() == SERVICE_UUID) {
-//        targetServices.add(service);
-//        if(targetServices.length==4) {
-//          readCharacteristic = targetServices[0].characteristics[0];
-//          print(readCharacteristic.uuid.toString());
-//          readCharacteristic.setNotifyValue(true).then((value) => print('read characteristic set'));
-//        }
-//      }
-//    });
-
-//    writeCharacteristic = targetCharacteristics[1];
     return [
       StreamBuilder<List<int>>(
         stream: readCharacteristic.value,
@@ -274,15 +343,15 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Characteristic'),
-                Text(
-                    '0x${readCharacteristic.uuid.toString()}',
-                    style: Theme.of(context).textTheme.bodyText2.copyWith(
-                        color: Theme.of(context).textTheme.caption.color))
+//                Text('Characteristic'),
+//                Text(
+//                    '0x${readCharacteristic.uuid.toString()}',
+//                    style: Theme.of(context).textTheme.bodyText2.copyWith(
+//                        color: Theme.of(context).textTheme.caption.color))
               ],
             ),
-            subtitle: Text(_dataParser(value)),
-            contentPadding: EdgeInsets.all(0.0),
+//            subtitle: Text(_dataParser(value)),
+//            contentPadding: EdgeInsets.all(0.0),
           );
         },
       ),
@@ -296,15 +365,15 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('Characteristic'),
-                Text(
-                    '0x${writeCharacteristic.uuid.toString()}',
-                    style: Theme.of(context).textTheme.bodyText2.copyWith(
-                        color: Theme.of(context).textTheme.caption.color))
+//                Text('Characteristic'),
+//                Text(
+//                    '0x${writeCharacteristic.uuid.toString()}',
+//                    style: Theme.of(context).textTheme.bodyText2.copyWith(
+//                        color: Theme.of(context).textTheme.caption.color))
               ],
             ),
-            subtitle: Text(_dataParser(value)),
-            contentPadding: EdgeInsets.all(0.0),
+//            subtitle: Text(_dataParser(value)),
+//            contentPadding: EdgeInsets.all(0.0),
           );
         },
       ),
@@ -327,9 +396,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
           new FlatButton(
             onPressed: () {
               endSession();
-//              Future.delayed(Duration(seconds: 1), () {});
-
-//              writeData('e');
             },
             child: new Text('Yes'),
           ),
@@ -419,7 +485,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
       width: 150.0,
 
       child: Center(
-        child: Expanded(
           child: Align(
             alignment: FractionalOffset.center,
             child: AspectRatio(
@@ -466,7 +531,6 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
             ),
           ),
         ),
-      ),
     );
   }
 
@@ -494,6 +558,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
                 children: [
                   circularProgressTimer(themeData),
                   SizedBox(height: 20),
+                  Text('POWER '+ vacuumLvl.toString(), style: themeData.textTheme.subtitle1),
                   pumpControls(),
                   RaisedButton(
                     child: new Text('STOP', style: themeData.textTheme.button.copyWith(color: Colors.white)),
@@ -527,7 +592,7 @@ class _SessionScreen extends State<SessionScreen> with TickerProviderStateMixin 
 
 class SessionEndScreen extends StatelessWidget{
   const SessionEndScreen({Key key, this.totalVol, this.sessionLength}) : super(key: key);
-  final double totalVol;
+  final int totalVol;
   final Duration sessionLength;
 
   @override
@@ -602,16 +667,16 @@ class SessionEndScreen extends StatelessWidget{
 //              ),
 //            ),
 
-            FlatButton(
-              onPressed: () {
-                Future.delayed(Duration.zero, () {
-                  Navigator.of(context).pop(true);
-                });
-              },
-//              color: Colors.blue,
-//              textColor: Colors.white,
-              child: Text('EXIT'),
-            ) ,
+//            FlatButton(
+//              onPressed: () {
+//                Future.delayed(Duration.zero, () {
+//                  Navigator.of(context).pop(true);
+//                });
+//              },
+////              color: Colors.blue,
+////              textColor: Colors.white,
+//              child: Text('EXIT'),
+//            ) ,
           ],
         ),
       ),
